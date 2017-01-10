@@ -88,7 +88,23 @@ var ArbitrarySelection = (function () {
     };
     // O(n^2) scc algorithm until someone convinces me I need a faster one
     ArbitrarySelection.prototype.getConnectedComponents = function () {
-        var start = this.cover[0];
+        var components = [];
+        var seenRects = {};
+        for (var _i = 0, _a = this.cover; _i < _a.length; _i++) {
+            var rect = _a[_i];
+            if (seenRects[serializeRect(rect)]) {
+                continue;
+            }
+            var component = this.getConnectedComponentFrom(rect);
+            components.push(component);
+            for (var _b = 0, component_1 = component; _b < component_1.length; _b++) {
+                var seen = component_1[_b];
+                seenRects[serializeRect(seen)] = true;
+            }
+        }
+        return components;
+    };
+    ArbitrarySelection.prototype.getConnectedComponentFrom = function (start) {
         var component = {};
         var edge = [start];
         while (edge.length > 0) {
@@ -97,8 +113,8 @@ var ArbitrarySelection = (function () {
                 if (component[serializeRect(rect)]) {
                     return "continue";
                 }
-                component[serializeRect(rect)] = true;
                 var intersectingRects = this_1.cover.filter(function (r) { return doRectsIntersect(r, rect); });
+                component[serializeRect(rect)] = true;
                 newEdge = newEdge.concat(intersectingRects);
             };
             var this_1 = this;
@@ -108,7 +124,7 @@ var ArbitrarySelection = (function () {
             }
             edge = newEdge;
         }
-        return [Object.keys(component).map(function (r) { return deserializeRect(r); })];
+        return Object.keys(component).map(function (r) { return deserializeRect(r); });
     };
     ArbitrarySelection.prototype.getOutlines = function () {
         return [];
@@ -132,8 +148,12 @@ sel.subtractRect({ x: 50, y: 50, w: 100, h: 100 });
 sel.addRect({ x: 200, y: 200, w: 200, h: 200 });
 sel.subtractRect({ x: 250, y: 250, w: 100, h: 100 });
 sel.render();
-var r = sel.getConnectedComponents()[0];
-for (var _i = 0, r_1 = r; _i < r_1.length; _i++) {
-    var rr = r_1[_i];
-    context.strokeRect(rr.x, rr.y, rr.w, rr.h);
+var comps = sel.getConnectedComponents();
+for (var _i = 0, comps_1 = comps; _i < comps_1.length; _i++) {
+    var comp = comps_1[_i];
+    context.strokeStyle = getRandomColor();
+    for (var _a = 0, comp_1 = comp; _a < comp_1.length; _a++) {
+        var rr = comp_1[_a];
+        context.strokeRect(rr.x, rr.y, rr.w, rr.h);
+    }
 }

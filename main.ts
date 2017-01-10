@@ -130,9 +130,26 @@ class ArbitrarySelection {
   // O(n^2) scc algorithm until someone convinces me I need a faster one
 
   getConnectedComponents(): Rect[][] {
-    const start = this.cover[0];
-    const component: { [key: string]: boolean } = { };
+    const components: Rect[][] = [];
+    const seenRects: { [key: string]: boolean } = {}
 
+    for (const rect of this.cover) {
+      if (seenRects[serializeRect(rect)]) { continue; }
+
+      const component = this.getConnectedComponentFrom(rect);
+
+      components.push(component);
+
+      for (const seen of component) {
+        seenRects[serializeRect(seen)] = true;
+      }
+    }
+
+    return components;
+  }
+
+  private getConnectedComponentFrom(start: Rect): Rect[] {
+    const component: { [key: string]: boolean } = { };
     let edge = [start];
 
     while (edge.length > 0) {
@@ -141,17 +158,16 @@ class ArbitrarySelection {
       for (const rect of edge) {
         if (component[serializeRect(rect)]) { continue; }
 
-        component[serializeRect(rect)] = true;
-
         const intersectingRects = this.cover.filter(r => doRectsIntersect(r, rect));
 
+        component[serializeRect(rect)] = true;
         newEdge = newEdge.concat(intersectingRects);
       }
 
       edge = newEdge;
     }
 
-    return [ Object.keys(component).map(r => deserializeRect(r)) ];
+    return Object.keys(component).map(r => deserializeRect(r));
   }
 
   getOutlines(): Line[][] {
@@ -183,8 +199,12 @@ sel.subtractRect({ x: 250, y: 250, w: 100, h: 100 })
 
 sel.render();
 
-const [ r ] = sel.getConnectedComponents();
+const comps = sel.getConnectedComponents();
 
-for (const rr of r) {
-  context.strokeRect(rr.x, rr.y, rr.w, rr.h);
+for (const comp of comps) {
+  context.strokeStyle = getRandomColor();
+
+  for (const rr of comp) {
+    context.strokeRect(rr.x, rr.y, rr.w, rr.h);
+  }
 }
