@@ -52,28 +52,24 @@ function getLineOverlap(one, two) {
     var overallLength = lineLength({
         x1: Math.min(one.x1, two.x1),
         y1: Math.min(one.y1, two.y1),
-        x2: Math.max(one.x1, two.x1),
-        y2: Math.max(one.y1, two.y1),
+        x2: Math.max(one.x2, two.x2),
+        y2: Math.max(one.y2, two.y2),
     });
     if (overallLength >= summedLength) {
         // These lines do not overlap.
         return undefined;
     }
     if (orientedByX) {
-        return {
-            x1: one.x1,
-            x2: one.x2,
-            y1: Math.max(one.y1, two.y1),
-            y2: Math.min(one.y2, two.y2),
-        };
+        return [
+            { x1: one.x1, x2: one.x2, y1: Math.min(one.y1, two.y1), y2: Math.max(one.y1, two.y1), },
+            { x1: one.x1, x2: one.x2, y1: Math.min(one.y2, two.y2), y2: Math.max(one.y2, two.y2), },
+        ];
     }
     else {
-        return {
-            y1: one.y1,
-            y2: one.y2,
-            x1: Math.max(one.x1, two.x1),
-            x2: Math.min(one.x2, two.x2),
-        };
+        return [
+            { y1: one.y1, y2: one.y2, x1: Math.min(one.x1, two.x1), x2: Math.max(one.x1, two.x1), },
+            { y1: one.y1, y2: one.y2, x1: Math.min(one.x2, two.x2), x2: Math.max(one.x2, two.x2), },
+        ];
     }
 }
 // consider overlapping edges as intersection, but not overlapping corners.
@@ -219,7 +215,7 @@ var ArbitrarySelection = (function () {
             allLines = allLines.concat(getLinesFromRect(rect));
         }
         context.strokeStyle = "#ffffff";
-        for (var _a = 0, allLines_1 = allLines; _a < allLines_1.length; _a++) {
+        outer: for (var _a = 0, allLines_1 = allLines; _a < allLines_1.length; _a++) {
             var line1 = allLines_1[_a];
             for (var _b = 0, allLines_2 = allLines; _b < allLines_2.length; _b++) {
                 var line2 = allLines_2[_b];
@@ -228,8 +224,12 @@ var ArbitrarySelection = (function () {
                 }
                 var intersection = getLineOverlap(line1, line2);
                 if (intersection) {
-                    console.log('found');
-                    this.drawLine(intersection);
+                    debugger;
+                    getLineOverlap(line1, line2);
+                    // this.drawLine(intersection[0]);
+                    // this.drawLine(intersection[1]);
+                    this.drawLine(line2);
+                    break outer;
                 }
             }
         }
