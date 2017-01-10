@@ -72,7 +72,7 @@ var ArbitrarySelection = (function () {
             var newRects = [
                 { x: rect.x, y: rect.y, w: rect.w, h: subtractedRect.y - rect.y },
                 { x: rect.x, y: subtractedRect.y, w: subtractedRect.x - rect.x, h: subtractedRect.h },
-                { x: subtractedRect.x + subtractedRect.w, y: subtractedRect.y, w: rect.w - (subtractedRect.w + subtractedRect.x), h: subtractedRect.h },
+                { x: subtractedRect.x + subtractedRect.w, y: subtractedRect.y, w: rect.x + rect.w - (subtractedRect.w + subtractedRect.x), h: subtractedRect.h },
                 { x: rect.x, y: subtractedRect.y + subtractedRect.h, w: rect.w, h: rect.y + rect.h - (subtractedRect.y + subtractedRect.h) },
             ].filter(function (r) { return r.w > 0 && r.h > 0; });
             this.cover = this.cover.concat(newRects);
@@ -93,6 +93,7 @@ var ArbitrarySelection = (function () {
  */
 var sel = new ArbitrarySelection();
 sel.addRect({ x: 0, y: 0, w: 200, h: 200 });
-// sel.subtractRect({ x: 50, y: 50, w: 100, h: 100 })
-sel.subtractRect({ x: 0, y: 100, w: 200, h: 200 });
+sel.subtractRect({ x: 50, y: 50, w: 100, h: 100 });
+sel.addRect({ x: 200, y: 200, w: 200, h: 200 });
+sel.subtractRect({ x: 250, y: 250, w: 100, h: 100 });
 sel.render();
