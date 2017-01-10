@@ -1,5 +1,6 @@
 var canvas = document.getElementsByTagName("canvas").item(0);
 var context = canvas.getContext("2d");
+context.translate(0.5, 0.5);
 function sortPointsOnLine(l) {
     var x1 = l.x1, x2 = l.x2, y1 = l.y1, y2 = l.y2;
     return {
@@ -62,7 +63,7 @@ function getLineOverlap(one, two) {
         return {
             x1: one.x1,
             x2: one.x2,
-            y1: Math.min(one.y1, two.y1),
+            y1: Math.max(one.y1, two.y1),
             y2: Math.min(one.y2, two.y2),
         };
     }
@@ -70,7 +71,7 @@ function getLineOverlap(one, two) {
         return {
             y1: one.y1,
             y2: one.y2,
-            x1: Math.min(one.x1, two.x1),
+            x1: Math.max(one.x1, two.x1),
             x2: Math.min(one.x2, two.x2),
         };
     }
@@ -78,7 +79,7 @@ function getLineOverlap(one, two) {
 // consider overlapping edges as intersection, but not overlapping corners.
 function doRectsIntersect(r1, r2) {
     var intersection = getIntersection(r1, r2, true);
-    return intersection && (intersection.w > 0 ||
+    return !!intersection && (intersection.w > 0 ||
         intersection.h > 0);
 }
 function completelyContains(larger, smaller) {
@@ -203,10 +204,11 @@ var ArbitrarySelection = (function () {
     ArbitrarySelection.prototype.getOutlines = function () {
         var components = this.getConnectedComponents();
         var outline = this.getOutlineFor(components[0]);
-        for (var _i = 0, _a = outline[0]; _i < _a.length; _i++) {
-            var l = _a[_i];
-            this.drawLine(l);
+        /*
+        for (const l of outline[0]) {
+          this.drawLine(l);
         }
+        */
         return [];
     };
     ArbitrarySelection.prototype.getOutlineFor = function (comp) {
@@ -216,12 +218,18 @@ var ArbitrarySelection = (function () {
             var rect = comp_1[_i];
             allLines = allLines.concat(getLinesFromRect(rect));
         }
+        context.strokeStyle = "#ffffff";
         for (var _a = 0, allLines_1 = allLines; _a < allLines_1.length; _a++) {
             var line1 = allLines_1[_a];
             for (var _b = 0, allLines_2 = allLines; _b < allLines_2.length; _b++) {
                 var line2 = allLines_2[_b];
                 if (line1 === line2) {
                     continue;
+                }
+                var intersection = getLineOverlap(line1, line2);
+                if (intersection) {
+                    console.log('found');
+                    this.drawLine(intersection);
                 }
             }
         }

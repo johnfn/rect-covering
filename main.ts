@@ -1,5 +1,7 @@
 const canvas = document.getElementsByTagName("canvas").item(0);
-const context = canvas.getContext("2d");
+const context = canvas.getContext("2d")!;
+
+context.translate(0.5, 0.5);
 
 interface Rect {
   x: number;
@@ -97,14 +99,14 @@ function getLineOverlap(one: Line, two: Line): Line | undefined {
     return {
       x1: one.x1,
       x2: one.x2,
-      y1: Math.min(one.y1, two.y1),
+      y1: Math.max(one.y1, two.y1),
       y2: Math.min(one.y2, two.y2),
     };
   } else /* if (orientedByY) */ {
     return {
       y1: one.y1,
       y2: one.y2,
-      x1: Math.min(one.x1, two.x1),
+      x1: Math.max(one.x1, two.x1),
       x2: Math.min(one.x2, two.x2),
     };
   }
@@ -114,7 +116,7 @@ function getLineOverlap(one: Line, two: Line): Line | undefined {
 function doRectsIntersect(r1: Rect, r2: Rect): boolean {
   const intersection = getIntersection(r1, r2, true);
 
-  return intersection && (
+  return !!intersection && (
            intersection.w > 0 ||
            intersection.h > 0 );
 }
@@ -187,7 +189,7 @@ class ArbitrarySelection {
 
       // subtractedRect partially contains rect
 
-      subtractedRect = getIntersection(subtractedRect, rect);
+      subtractedRect = getIntersection(subtractedRect, rect)!;
 
       // rect completely contains subtractedRect
 
@@ -256,10 +258,8 @@ class ArbitrarySelection {
 
   drawLine(l: Line): void {
     context.beginPath();
-
     context.moveTo(l.x1, l.y1);
     context.lineTo(l.x2, l.y2);
-
     context.stroke();
   }
 
@@ -267,9 +267,11 @@ class ArbitrarySelection {
     const components = this.getConnectedComponents();
     const outline = this.getOutlineFor(components[0]);
 
+    /*
     for (const l of outline[0]) {
       this.drawLine(l);
     }
+    */
 
     return [];
   }
@@ -282,11 +284,19 @@ class ArbitrarySelection {
       allLines = allLines.concat(getLinesFromRect(rect));
     }
 
+    context.strokeStyle = "#ffffff";
+
     for (const line1 of allLines) {
       for (const line2 of allLines) {
         if (line1 === line2) { continue; }
 
+        const intersection = getLineOverlap(line1, line2);
 
+        if (intersection) {
+          console.log('found');
+
+          this.drawLine(intersection);
+        }
       }
     }
 
@@ -299,7 +309,7 @@ class ArbitrarySelection {
     for (const rect of this.cover) {
       context.strokeStyle = getRandomColor();
 
-      context.strokeRect(rect.x, rect.y, rect.w, rect.h)
+      context.strokeRect(rect.x, rect.y, rect.w, rect.h);
     }
   }
 }
