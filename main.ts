@@ -71,6 +71,8 @@ class ArbitrarySelection {
 
         const newRects = [
           { x: rect.x, y: rect.y, w: rect.w, h: subtractedRect.y - rect.y }, // A
+          { x: rect.x, y: subtractedRect.y, w: subtractedRect.x - rect.x, h: subtractedRect.h }, // B
+          { x: subtractedRect.x + subtractedRect.w, y: subtractedRect.y, w: rect.w - (subtractedRect.w + subtractedRect.x), h: subtractedRect.h }, // C
           { x: rect.x, y: subtractedRect.y + subtractedRect.h, w: rect.w, h: rect.y + rect.h - (subtractedRect.y + subtractedRect.h) }, // D
         ];
 
@@ -91,6 +93,10 @@ class ArbitrarySelection {
     }
   }
 }
+
+/**
+ * Usage example
+ */
 
 const sel = new ArbitrarySelection();
 
