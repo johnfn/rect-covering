@@ -1,10 +1,17 @@
 var canvas = document.getElementsByTagName("canvas").item(0);
 var context = canvas.getContext("2d");
-function intersectRect(r1, r2) {
-    return !(r2.x > (r1.x + r1.w) ||
-        (r2.x + r2.w) < r1.x ||
-        r2.y > (r1.y + r1.h) ||
-        (r2.y + r2.h) < r1.y);
+function serializeRect(r) {
+    return r.x + "|" + r.y + "|" + r.w + "|" + r.h;
+}
+function deserializeRect(s) {
+    var _a = s.split("|").map(function (x) { return Number(x); }), x = _a[0], y = _a[1], w = _a[2], h = _a[3];
+    return { x: x, y: y, w: w, h: h };
+}
+// consider overlapping edges as intersection, but not overlapping corners.
+function doRectsIntersect(r1, r2) {
+    var intersection = getIntersection(r1, r2, true);
+    return intersection && (intersection.w > 0 ||
+        intersection.h > 0);
 }
 function completelyContains(larger, smaller) {
     return larger.x <= smaller.x &&
@@ -12,17 +19,18 @@ function completelyContains(larger, smaller) {
         larger.y <= smaller.y &&
         larger.y + larger.h >= smaller.y + smaller.h;
 }
-function getIntersection(r1, r2) {
+function getIntersection(r1, r2, edgesOnlyIsAnIntersection) {
+    if (edgesOnlyIsAnIntersection === void 0) { edgesOnlyIsAnIntersection = false; }
     var xmin = Math.max(r1.x, r2.x);
     var xmax1 = r1.x + r1.w;
     var xmax2 = r2.x + r2.w;
     var xmax = Math.min(xmax1, xmax2);
-    if (xmax > xmin) {
+    if (xmax > xmin || (edgesOnlyIsAnIntersection && xmax >= xmin)) {
         var ymin = Math.max(r1.y, r2.y);
         var ymax1 = r1.y + r1.h;
         var ymax2 = r2.y + r2.h;
         var ymax = Math.min(ymax1, ymax2);
-        if (ymax > ymin) {
+        if (ymax >= ymin || (edgesOnlyIsAnIntersection && ymax >= ymin)) {
             return {
                 x: xmin,
                 y: ymin,
@@ -49,7 +57,7 @@ var ArbitrarySelection = (function () {
         this.cover.push(rect);
     };
     ArbitrarySelection.prototype.subtractRect = function (subtractedRect) {
-        var intersectingRects = this.cover.filter(function (r) { return intersectRect(r, subtractedRect); });
+        var intersectingRects = this.cover.filter(function (r) { return doRectsIntersect(r, subtractedRect); });
         for (var _i = 0, intersectingRects_1 = intersectingRects; _i < intersectingRects_1.length; _i++) {
             var rect = intersectingRects_1[_i];
             this.cover.splice(this.cover.indexOf(rect), 1);
@@ -78,6 +86,33 @@ var ArbitrarySelection = (function () {
             this.cover = this.cover.concat(newRects);
         }
     };
+    // O(n^2) scc algorithm until someone convinces me I need a faster one
+    ArbitrarySelection.prototype.getConnectedComponents = function () {
+        var start = this.cover[0];
+        var component = {};
+        var edge = [start];
+        while (edge.length > 0) {
+            var newEdge = [];
+            var _loop_1 = function (rect) {
+                if (component[serializeRect(rect)]) {
+                    return "continue";
+                }
+                component[serializeRect(rect)] = true;
+                var intersectingRects = this_1.cover.filter(function (r) { return doRectsIntersect(r, rect); });
+                newEdge = newEdge.concat(intersectingRects);
+            };
+            var this_1 = this;
+            for (var _i = 0, edge_1 = edge; _i < edge_1.length; _i++) {
+                var rect = edge_1[_i];
+                _loop_1(rect);
+            }
+            edge = newEdge;
+        }
+        return [Object.keys(component).map(function (r) { return deserializeRect(r); })];
+    };
+    ArbitrarySelection.prototype.getOutlines = function () {
+        return [];
+    };
     ArbitrarySelection.prototype.render = function () {
         context.clearRect(0, 0, 800, 800);
         for (var _i = 0, _a = this.cover; _i < _a.length; _i++) {
@@ -97,3 +132,8 @@ sel.subtractRect({ x: 50, y: 50, w: 100, h: 100 });
 sel.addRect({ x: 200, y: 200, w: 200, h: 200 });
 sel.subtractRect({ x: 250, y: 250, w: 100, h: 100 });
 sel.render();
+var r = sel.getConnectedComponents()[0];
+for (var _i = 0, r_1 = r; _i < r_1.length; _i++) {
+    var rr = r_1[_i];
+    context.strokeRect(rr.x, rr.y, rr.w, rr.h);
+}

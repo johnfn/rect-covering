@@ -8,11 +8,30 @@ interface Rect {
   h: number;
 }
 
-function intersectRect(r1: Rect, r2: Rect): boolean {
-  return !(r2.x         > (r1.x + r1.w) ||
-          (r2.x + r2.w) < r1.x          ||
-           r2.y         > (r1.y + r1.h) ||
-          (r2.y + r2.h) < r1.y);
+interface Line {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+}
+
+function serializeRect(r: Rect): string {
+  return `${ r.x }|${ r.y }|${ r.w }|${ r.h }`;
+}
+
+function deserializeRect(s: string): Rect {
+  const [ x, y, w, h ] = s.split("|").map(x => Number(x));
+
+  return { x, y, w, h };
+}
+
+// consider overlapping edges as intersection, but not overlapping corners.
+function doRectsIntersect(r1: Rect, r2: Rect): boolean {
+  const intersection = getIntersection(r1, r2, true);
+
+  return intersection && (
+           intersection.w > 0 ||
+           intersection.h > 0 );
 }
 
 function completelyContains(larger: Rect, smaller: Rect): boolean {
@@ -22,19 +41,19 @@ function completelyContains(larger: Rect, smaller: Rect): boolean {
          larger.y + larger.h >= smaller.y + smaller.h ;
 }
 
-function getIntersection(r1: Rect, r2: Rect): Rect | undefined {
+function getIntersection(r1: Rect, r2: Rect, edgesOnlyIsAnIntersection = false): Rect | undefined {
   const xmin = Math.max(r1.x, r2.x);
   const xmax1 = r1.x + r1.w;
   const xmax2 = r2.x + r2.w;
   const xmax = Math.min(xmax1, xmax2);
 
-  if (xmax > xmin) {
+  if (xmax > xmin || (edgesOnlyIsAnIntersection && xmax >= xmin)) {
     const ymin = Math.max(r1.y, r2.y);
     const ymax1 = r1.y + r1.h;
     const ymax2 = r2.y + r2.h;
     const ymax = Math.min(ymax1, ymax2);
 
-    if (ymax > ymin) {
+    if (ymax >= ymin || (edgesOnlyIsAnIntersection && ymax >= ymin)) {
       return {
         x: xmin,
         y: ymin,
@@ -70,7 +89,7 @@ class ArbitrarySelection {
   }
 
   subtractRect(subtractedRect: Rect): void {
-    const intersectingRects = this.cover.filter(r => intersectRect(r, subtractedRect));
+    const intersectingRects = this.cover.filter(r => doRectsIntersect(r, subtractedRect));
 
     for (const rect of intersectingRects) {
       this.cover.splice(this.cover.indexOf(rect), 1);
@@ -108,6 +127,37 @@ class ArbitrarySelection {
     }
   }
 
+  // O(n^2) scc algorithm until someone convinces me I need a faster one
+
+  getConnectedComponents(): Rect[][] {
+    const start = this.cover[0];
+    const component: { [key: string]: boolean } = { };
+
+    let edge = [start];
+
+    while (edge.length > 0) {
+      let newEdge: Rect[] = [];
+
+      for (const rect of edge) {
+        if (component[serializeRect(rect)]) { continue; }
+
+        component[serializeRect(rect)] = true;
+
+        const intersectingRects = this.cover.filter(r => doRectsIntersect(r, rect));
+
+        newEdge = newEdge.concat(intersectingRects);
+      }
+
+      edge = newEdge;
+    }
+
+    return [ Object.keys(component).map(r => deserializeRect(r)) ];
+  }
+
+  getOutlines(): Line[][] {
+    return [];
+  }
+
   render(): void {
     context.clearRect(0, 0, 800, 800);
 
@@ -132,3 +182,9 @@ sel.addRect({ x: 200, y: 200, w: 200, h: 200 })
 sel.subtractRect({ x: 250, y: 250, w: 100, h: 100 })
 
 sel.render();
+
+const [ r ] = sel.getConnectedComponents();
+
+for (const rr of r) {
+  context.strokeRect(rr.x, rr.y, rr.w, rr.h);
+}
