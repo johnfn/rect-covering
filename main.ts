@@ -15,6 +15,33 @@ interface Line {
   y2: number;
 }
 
+function sortPointsOnLine(l: Line): Line {
+  const { x1, x2, y1, y2 } = l;
+
+  return {
+    x1: Math.min(x1, x2),
+    x2: Math.max(x1, x2),
+    y1: Math.min(y1, y2),
+    y2: Math.max(y1, y2),
+  };
+}
+
+function lineLength(l: Line): number {
+  return Math.sqrt(
+    (l.x2 - l.x1) * (l.x2 - l.x1) +
+    (l.y2 - l.y1) * (l.y2 - l.y1)
+  );
+}
+
+function getLinesFromRect(r: Rect): Line[] {
+  return [
+    { x1: r.x      , y1: r.y      , x2: r.x + r.w, y2: r.y       },
+    { x1: r.x      , y1: r.y      , x2: r.x      , y2: r.y + r.h },
+    { x1: r.x + r.w, y1: r.y + r.h, x2: r.x + r.w, y2: r.y       },
+    { x1: r.x + r.w, y1: r.y + r.h, x2: r.x      , y2: r.y + r.h },
+  ].map(l => sortPointsOnLine(l));
+}
+
 function serializeRect(r: Rect): string {
   return `${ r.x }|${ r.y }|${ r.w }|${ r.h }`;
 }
@@ -23,6 +50,64 @@ function deserializeRect(s: string): Rect {
   const [ x, y, w, h ] = s.split("|").map(x => Number(x));
 
   return { x, y, w, h };
+}
+
+function within(val: number, start: number, end: number): boolean {
+  const low = Math.min(start, end);
+  const high = Math.max(start, end);
+
+  return val >= low && val <= high;
+}
+
+// Must be horizontally/vertically oriented lines
+// Does not consider intersection, only overlap
+function getLineOverlap(one: Line, two: Line): Line | undefined {
+  one = sortPointsOnLine(one);
+  two = sortPointsOnLine(two);
+
+  const orientedByX = (
+    one.x1 === one.x2 &&
+    one.x1 === two.x1 &&
+    one.x1 === two.x2
+  );
+
+  const orientedByY = (
+    one.y1 === one.y2 &&
+    one.y1 === two.y1 &&
+    one.y1 === two.y2
+  );
+
+  if (!orientedByX && !orientedByY) { return undefined; }
+
+  const summedLength  = lineLength(one) + lineLength(two);
+  const overallLength = lineLength({
+    x1: Math.min(one.x1, two.x1),
+    y1: Math.min(one.y1, two.y1),
+    x2: Math.max(one.x1, two.x1),
+    y2: Math.max(one.y1, two.y1),
+  });
+
+  if (overallLength >= summedLength) {
+    // These lines do not overlap.
+
+    return undefined;
+  }
+
+  if (orientedByX) {
+    return {
+      x1: one.x1,
+      x2: one.x2,
+      y1: Math.min(one.y1, two.y1),
+      y2: Math.min(one.y2, two.y2),
+    };
+  } else /* if (orientedByY) */ {
+    return {
+      y1: one.y1,
+      y2: one.y2,
+      x1: Math.min(one.x1, two.x1),
+      x2: Math.min(one.x2, two.x2),
+    };
+  }
 }
 
 // consider overlapping edges as intersection, but not overlapping corners.
@@ -128,7 +213,6 @@ class ArbitrarySelection {
   }
 
   // O(n^2) scc algorithm until someone convinces me I need a faster one
-
   getConnectedComponents(): Rect[][] {
     const components: Rect[][] = [];
     const seenRects: { [key: string]: boolean } = {}
@@ -170,7 +254,42 @@ class ArbitrarySelection {
     return Object.keys(component).map(r => deserializeRect(r));
   }
 
+  drawLine(l: Line): void {
+    context.beginPath();
+
+    context.moveTo(l.x1, l.y1);
+    context.lineTo(l.x2, l.y2);
+
+    context.stroke();
+  }
+
   getOutlines(): Line[][] {
+    const components = this.getConnectedComponents();
+    const outline = this.getOutlineFor(components[0]);
+
+    for (const l of outline[0]) {
+      this.drawLine(l);
+    }
+
+    return [];
+  }
+
+  private getOutlineFor(comp: Rect[]): Line[][] {
+    let allLines: Line[] = [];
+    let linesOnOutline: Line[] = [];
+
+    for (const rect of comp) {
+      allLines = allLines.concat(getLinesFromRect(rect));
+    }
+
+    for (const line1 of allLines) {
+      for (const line2 of allLines) {
+        if (line1 === line2) { continue; }
+
+
+      }
+    }
+
     return [];
   }
 
@@ -199,12 +318,4 @@ sel.subtractRect({ x: 250, y: 250, w: 100, h: 100 })
 
 sel.render();
 
-const comps = sel.getConnectedComponents();
-
-for (const comp of comps) {
-  context.strokeStyle = getRandomColor();
-
-  for (const rr of comp) {
-    context.strokeRect(rr.x, rr.y, rr.w, rr.h);
-  }
-}
+sel.getOutlines();
