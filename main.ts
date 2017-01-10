@@ -22,6 +22,31 @@ function completelyContains(larger: Rect, smaller: Rect): boolean {
          larger.y + larger.h >= smaller.y + smaller.h ;
 }
 
+function getIntersection(r1: Rect, r2: Rect): Rect | undefined {
+  const xmin = Math.max(r1.x, r2.x);
+  const xmax1 = r1.x + r1.w;
+  const xmax2 = r2.x + r2.w;
+  const xmax = Math.min(xmax1, xmax2);
+
+  if (xmax > xmin) {
+    const ymin = Math.max(r1.y, r2.y);
+    const ymax1 = r1.y + r1.h;
+    const ymax2 = r2.y + r2.h;
+    const ymax = Math.min(ymax1, ymax2);
+
+    if (ymax > ymin) {
+      return {
+        x: xmin,
+        y: ymin,
+        w: xmax - xmin,
+        h: ymax - ymin,
+      };
+    }
+  }
+
+  return undefined;
+}
+
 function getRandomColor() {
   const letters = '0123456789ABCDEF';
   let color = '#';
@@ -56,30 +81,30 @@ class ArbitrarySelection {
         continue;
       }
 
+      // subtractedRect partially contains rect
+
+      subtractedRect = getIntersection(subtractedRect, rect);
+
       // rect completely contains subtractedRect
 
-      if (completelyContains(rect, subtractedRect)) {
-        // -------------------------
-        // |          A            |
-        // |                       |
-        // |-----------------------|
-        // |  B  |   hole    |  C  |
-        // |-----------------------|
-        // |                       |
-        // |          D            |
-        // -------------------------
+      // -------------------------
+      // |          A            |
+      // |                       |
+      // |-----------------------|
+      // |  B  |   hole    |  C  |
+      // |-----------------------|
+      // |                       |
+      // |          D            |
+      // -------------------------
 
-        const newRects = [
-          { x: rect.x, y: rect.y, w: rect.w, h: subtractedRect.y - rect.y }, // A
-          { x: rect.x, y: subtractedRect.y, w: subtractedRect.x - rect.x, h: subtractedRect.h }, // B
-          { x: subtractedRect.x + subtractedRect.w, y: subtractedRect.y, w: rect.w - (subtractedRect.w + subtractedRect.x), h: subtractedRect.h }, // C
-          { x: rect.x, y: subtractedRect.y + subtractedRect.h, w: rect.w, h: rect.y + rect.h - (subtractedRect.y + subtractedRect.h) }, // D
-        ];
+      const newRects = [
+        { x: rect.x, y: rect.y, w: rect.w, h: subtractedRect.y - rect.y }, // A
+        { x: rect.x, y: subtractedRect.y, w: subtractedRect.x - rect.x, h: subtractedRect.h }, // B
+        { x: subtractedRect.x + subtractedRect.w, y: subtractedRect.y, w: rect.w - (subtractedRect.w + subtractedRect.x), h: subtractedRect.h }, // C
+        { x: rect.x, y: subtractedRect.y + subtractedRect.h, w: rect.w, h: rect.y + rect.h - (subtractedRect.y + subtractedRect.h) }, // D
+      ].filter(r => r.w > 0 && r.h > 0);
 
-        this.cover = this.cover.concat(newRects);
-      }
-
-      // subtractedRect partially contains rect
+      this.cover = this.cover.concat(newRects);
     }
   }
 
@@ -101,6 +126,7 @@ class ArbitrarySelection {
 const sel = new ArbitrarySelection();
 
 sel.addRect({ x: 0, y: 0, w: 200, h: 200 })
-sel.subtractRect({ x: 50, y: 50, w: 100, h: 100 })
+// sel.subtractRect({ x: 50, y: 50, w: 100, h: 100 })
+sel.subtractRect({ x: 0, y: 100, w: 200, h: 200 });
 
 sel.render();

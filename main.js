@@ -12,6 +12,27 @@ function completelyContains(larger, smaller) {
         larger.y <= smaller.y &&
         larger.y + larger.h >= smaller.y + smaller.h;
 }
+function getIntersection(r1, r2) {
+    var xmin = Math.max(r1.x, r2.x);
+    var xmax1 = r1.x + r1.w;
+    var xmax2 = r2.x + r2.w;
+    var xmax = Math.min(xmax1, xmax2);
+    if (xmax > xmin) {
+        var ymin = Math.max(r1.y, r2.y);
+        var ymax1 = r1.y + r1.h;
+        var ymax2 = r2.y + r2.h;
+        var ymax = Math.min(ymax1, ymax2);
+        if (ymax > ymin) {
+            return {
+                x: xmin,
+                y: ymin,
+                w: xmax - xmin,
+                h: ymax - ymin,
+            };
+        }
+    }
+    return undefined;
+}
 function getRandomColor() {
     var letters = '0123456789ABCDEF';
     var color = '#';
@@ -36,25 +57,25 @@ var ArbitrarySelection = (function () {
             if (completelyContains(subtractedRect, rect)) {
                 continue;
             }
+            // subtractedRect partially contains rect
+            subtractedRect = getIntersection(subtractedRect, rect);
             // rect completely contains subtractedRect
-            if (completelyContains(rect, subtractedRect)) {
-                // -------------------------
-                // |          A            |
-                // |                       |
-                // |-----------------------|
-                // |  B  |   hole    |  C  |
-                // |-----------------------|
-                // |                       |
-                // |          D            |
-                // -------------------------
-                var newRects = [
-                    { x: rect.x, y: rect.y, w: rect.w, h: subtractedRect.y - rect.y },
-                    { x: rect.x, y: subtractedRect.y, w: subtractedRect.x - rect.x, h: subtractedRect.h },
-                    { x: subtractedRect.x + subtractedRect.w, y: subtractedRect.y, w: rect.w - (subtractedRect.w + subtractedRect.x), h: subtractedRect.h },
-                    { x: rect.x, y: subtractedRect.y + subtractedRect.h, w: rect.w, h: rect.y + rect.h - (subtractedRect.y + subtractedRect.h) },
-                ];
-                this.cover = this.cover.concat(newRects);
-            }
+            // -------------------------
+            // |          A            |
+            // |                       |
+            // |-----------------------|
+            // |  B  |   hole    |  C  |
+            // |-----------------------|
+            // |                       |
+            // |          D            |
+            // -------------------------
+            var newRects = [
+                { x: rect.x, y: rect.y, w: rect.w, h: subtractedRect.y - rect.y },
+                { x: rect.x, y: subtractedRect.y, w: subtractedRect.x - rect.x, h: subtractedRect.h },
+                { x: subtractedRect.x + subtractedRect.w, y: subtractedRect.y, w: rect.w - (subtractedRect.w + subtractedRect.x), h: subtractedRect.h },
+                { x: rect.x, y: subtractedRect.y + subtractedRect.h, w: rect.w, h: rect.y + rect.h - (subtractedRect.y + subtractedRect.h) },
+            ].filter(function (r) { return r.w > 0 && r.h > 0; });
+            this.cover = this.cover.concat(newRects);
         }
     };
     ArbitrarySelection.prototype.render = function () {
@@ -72,5 +93,6 @@ var ArbitrarySelection = (function () {
  */
 var sel = new ArbitrarySelection();
 sel.addRect({ x: 0, y: 0, w: 200, h: 200 });
-sel.subtractRect({ x: 50, y: 50, w: 100, h: 100 });
+// sel.subtractRect({ x: 50, y: 50, w: 100, h: 100 })
+sel.subtractRect({ x: 0, y: 100, w: 200, h: 200 });
 sel.render();
