@@ -178,16 +178,14 @@ var ArbitrarySelection = (function () {
     };
     ArbitrarySelection.prototype.subtractRect = function (subtractedRect) {
         var intersectingRects = this.cover.filter(function (r) { return doRectsIntersect(r, subtractedRect, { edgesOnlyIsAnIntersection: false }); });
-        console.log("count of intersections:", intersectingRects.length);
         for (var _i = 0, intersectingRects_2 = intersectingRects; _i < intersectingRects_2.length; _i++) {
             var rect = intersectingRects_2[_i];
-            this.cover.splice(this.cover.indexOf(rect), 1);
             // subtractedRect completely contains rect
             if (completelyContains(subtractedRect, rect)) {
                 continue;
             }
             // subtractedRect partially contains rect
-            subtractedRect = getIntersection(subtractedRect, rect);
+            var subrectToRemove = getIntersection(subtractedRect, rect);
             // rect completely contains subtractedRect
             // -------------------------
             // |          A            |
@@ -199,12 +197,16 @@ var ArbitrarySelection = (function () {
             // |          D            |
             // -------------------------
             var newRects = [
-                { x: rect.x, y: rect.y, w: rect.w, h: subtractedRect.y - rect.y },
-                { x: rect.x, y: subtractedRect.y, w: subtractedRect.x - rect.x, h: subtractedRect.h },
-                { x: subtractedRect.x + subtractedRect.w, y: subtractedRect.y, w: rect.x + rect.w - (subtractedRect.w + subtractedRect.x), h: subtractedRect.h },
-                { x: rect.x, y: subtractedRect.y + subtractedRect.h, w: rect.w, h: rect.y + rect.h - (subtractedRect.y + subtractedRect.h) },
+                { x: rect.x, y: rect.y, w: rect.w, h: subrectToRemove.y - rect.y },
+                { x: rect.x, y: subrectToRemove.y, w: subrectToRemove.x - rect.x, h: subrectToRemove.h },
+                { x: subrectToRemove.x + subrectToRemove.w, y: subrectToRemove.y, w: rect.x + rect.w - (subrectToRemove.w + subrectToRemove.x), h: subrectToRemove.h },
+                { x: rect.x, y: subrectToRemove.y + subrectToRemove.h, w: rect.w, h: rect.y + rect.h - (subrectToRemove.y + subrectToRemove.h) },
             ].filter(function (r) { return r.w > 0 && r.h > 0; });
             this.cover = this.cover.concat(newRects);
+        }
+        for (var _a = 0, intersectingRects_3 = intersectingRects; _a < intersectingRects_3.length; _a++) {
+            var rect = intersectingRects_3[_a];
+            this.cover.splice(this.cover.indexOf(rect), 1);
         }
     };
     // O(n^2) scc algorithm until someone convinces me I need a faster one
