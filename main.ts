@@ -48,6 +48,10 @@ function serializeRect(r: Rect): string {
   return `${ r.x }|${ r.y }|${ r.w }|${ r.h }`;
 }
 
+function isDegenerateLine(l: Line): boolean {
+  return lineLength(l) === 0;
+}
+
 function deserializeRect(s: string): Rect {
   const [ x, y, w, h ] = s.split("|").map(x => Number(x));
 
@@ -85,8 +89,8 @@ function getLineOverlap(one: Line, two: Line): Line | undefined {
   const overallLength = lineLength({
     x1: Math.min(one.x1, two.x1),
     y1: Math.min(one.y1, two.y1),
-    x2: Math.max(one.x1, two.x1),
-    y2: Math.max(one.y1, two.y1),
+    x2: Math.max(one.x2, two.x2),
+    y2: Math.max(one.y2, two.y2),
   });
 
   if (overallLength >= summedLength) {
@@ -109,6 +113,53 @@ function getLineOverlap(one: Line, two: Line): Line | undefined {
       x1: Math.max(one.x1, two.x1),
       x2: Math.min(one.x2, two.x2),
     };
+  }
+}
+
+// A----B----C----D
+// AD - BC returns AB and CD.
+function getNonOverlap(one: Line, two: Line): Line[] | undefined {
+  one = sortPointsOnLine(one);
+  two = sortPointsOnLine(two);
+
+  const orientedByX = (
+    one.x1 === one.x2 &&
+    one.x1 === two.x1 &&
+    one.x1 === two.x2
+  );
+
+  const orientedByY = (
+    one.y1 === one.y2 &&
+    one.y1 === two.y1 &&
+    one.y1 === two.y2
+  );
+
+  if (!orientedByX && !orientedByY) { return undefined; }
+
+  const summedLength  = lineLength(one) + lineLength(two);
+  const overallLength = lineLength({
+    x1: Math.min(one.x1, two.x1),
+    y1: Math.min(one.y1, two.y1),
+    x2: Math.max(one.x1, two.x1),
+    y2: Math.max(one.y1, two.y1),
+  });
+
+  if (overallLength >= summedLength) {
+    // These lines do not overlap.
+
+    return undefined;
+  }
+
+  if (orientedByX) {
+    return [
+      { x1: one.x1, x2: one.x2, y1: Math.min(one.y1, two.y1), y2: Math.max(one.y1, two.y1), },
+      { x1: one.x1, x2: one.x2, y1: Math.min(one.y2, two.y2), y2: Math.max(one.y2, two.y2), },
+    ].filter(l => !isDegenerateLine(l));
+  } else /* if (orientedByY) */ {
+    return [
+      { y1: one.y1, y2: one.y2, x1: Math.min(one.x1, two.x1), x2: Math.max(one.x1, two.x1), },
+      { y1: one.y1, y2: one.y2, x1: Math.min(one.x2, two.x2), x2: Math.max(one.x2, two.x2), },
+    ].filter(l => !isDegenerateLine(l));
   }
 }
 
@@ -277,7 +328,7 @@ class ArbitrarySelection {
   }
 
   private getOutlineFor(comp: Rect[]): Line[][] {
-    let allLines: Line[] = [];
+    let allLines: (Line | undefined)[] = [];
     let linesOnOutline: Line[] = [];
 
     for (const rect of comp) {
@@ -286,18 +337,40 @@ class ArbitrarySelection {
 
     context.strokeStyle = "#ffffff";
 
-    for (const line1 of allLines) {
-      for (const line2 of allLines) {
+    // Alternate solution if this proves too hard:
+    // Subdivide all lines on intersection points, then remove all
+    // duplicates.
+
+    // Actually that might even be better heh
+
+    for (let i = 0; i < allLines.length; i++) {
+      const line1 = allLines[i];
+      if (!line1) { continue; }
+
+      for (let j = 0; j < allLines.length; j++) {
+        const line2 = allLines[j];
+        if (!line2) { continue; }
         if (line1 === line2) { continue; }
 
         const intersection = getLineOverlap(line1, line2);
 
         if (intersection) {
-          console.log('found');
+          allLines[i] = undefined;
+          allLines[j] = undefined;
 
-          this.drawLine(intersection);
+          const newLines = getNonOverlap(line1, line2)!;
+
+          allLines = allLines.concat(newLines);
+
+          break;
         }
       }
+    }
+
+    const nonOverlappingLines: Line[] = allLines.filter(l => l !== undefined) as Line[];
+
+    for (const l of nonOverlappingLines) {
+      this.drawLine(l);
     }
 
     return [];

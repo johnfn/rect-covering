@@ -25,6 +25,9 @@ function getLinesFromRect(r) {
 function serializeRect(r) {
     return r.x + "|" + r.y + "|" + r.w + "|" + r.h;
 }
+function isDegenerateLine(l) {
+    return lineLength(l) === 0;
+}
 function deserializeRect(s) {
     var _a = s.split("|").map(function (x) { return Number(x); }), x = _a[0], y = _a[1], w = _a[2], h = _a[3];
     return { x: x, y: y, w: w, h: h };
@@ -52,8 +55,8 @@ function getLineOverlap(one, two) {
     var overallLength = lineLength({
         x1: Math.min(one.x1, two.x1),
         y1: Math.min(one.y1, two.y1),
-        x2: Math.max(one.x1, two.x1),
-        y2: Math.max(one.y1, two.y1),
+        x2: Math.max(one.x2, two.x2),
+        y2: Math.max(one.y2, two.y2),
     });
     if (overallLength >= summedLength) {
         // These lines do not overlap.
@@ -74,6 +77,44 @@ function getLineOverlap(one, two) {
             x1: Math.max(one.x1, two.x1),
             x2: Math.min(one.x2, two.x2),
         };
+    }
+}
+// A----B----C----D
+// AD - BC returns AB and CD.
+function getNonOverlap(one, two) {
+    one = sortPointsOnLine(one);
+    two = sortPointsOnLine(two);
+    var orientedByX = (one.x1 === one.x2 &&
+        one.x1 === two.x1 &&
+        one.x1 === two.x2);
+    var orientedByY = (one.y1 === one.y2 &&
+        one.y1 === two.y1 &&
+        one.y1 === two.y2);
+    if (!orientedByX && !orientedByY) {
+        return undefined;
+    }
+    var summedLength = lineLength(one) + lineLength(two);
+    var overallLength = lineLength({
+        x1: Math.min(one.x1, two.x1),
+        y1: Math.min(one.y1, two.y1),
+        x2: Math.max(one.x1, two.x1),
+        y2: Math.max(one.y1, two.y1),
+    });
+    if (overallLength >= summedLength) {
+        // These lines do not overlap.
+        return undefined;
+    }
+    if (orientedByX) {
+        return [
+            { x1: one.x1, x2: one.x2, y1: Math.min(one.y1, two.y1), y2: Math.max(one.y1, two.y1), },
+            { x1: one.x1, x2: one.x2, y1: Math.min(one.y2, two.y2), y2: Math.max(one.y2, two.y2), },
+        ].filter(function (l) { return !isDegenerateLine(l); });
+    }
+    else {
+        return [
+            { y1: one.y1, y2: one.y2, x1: Math.min(one.x1, two.x1), x2: Math.max(one.x1, two.x1), },
+            { y1: one.y1, y2: one.y2, x1: Math.min(one.x2, two.x2), x2: Math.max(one.x2, two.x2), },
+        ].filter(function (l) { return !isDegenerateLine(l); });
     }
 }
 // consider overlapping edges as intersection, but not overlapping corners.
@@ -219,19 +260,37 @@ var ArbitrarySelection = (function () {
             allLines = allLines.concat(getLinesFromRect(rect));
         }
         context.strokeStyle = "#ffffff";
-        for (var _a = 0, allLines_1 = allLines; _a < allLines_1.length; _a++) {
-            var line1 = allLines_1[_a];
-            for (var _b = 0, allLines_2 = allLines; _b < allLines_2.length; _b++) {
-                var line2 = allLines_2[_b];
+        // Alternate solution if this proves too hard:
+        // Subdivide all lines on intersection points, then remove all
+        // duplicates.
+        // Actually that might even be better heh
+        for (var i = 0; i < allLines.length; i++) {
+            var line1 = allLines[i];
+            if (!line1) {
+                continue;
+            }
+            for (var j = 0; j < allLines.length; j++) {
+                var line2 = allLines[j];
+                if (!line2) {
+                    continue;
+                }
                 if (line1 === line2) {
                     continue;
                 }
                 var intersection = getLineOverlap(line1, line2);
                 if (intersection) {
-                    console.log('found');
-                    this.drawLine(intersection);
+                    allLines[i] = undefined;
+                    allLines[j] = undefined;
+                    var newLines = getNonOverlap(line1, line2);
+                    allLines = allLines.concat(newLines);
+                    break;
                 }
             }
+        }
+        var nonOverlappingLines = allLines.filter(function (l) { return l !== undefined; });
+        for (var _a = 0, nonOverlappingLines_1 = nonOverlappingLines; _a < nonOverlappingLines_1.length; _a++) {
+            var l = nonOverlappingLines_1[_a];
+            this.drawLine(l);
         }
         return [];
     };
