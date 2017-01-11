@@ -324,35 +324,38 @@ var ArbitrarySelection = (function () {
  */
 var sel = new ArbitrarySelection();
 var start = undefined;
+function getMousedRect(e) {
+    if (!start) {
+        return undefined;
+    }
+    return {
+        x: Math.min(start.x, e.clientX),
+        y: Math.min(start.y, e.clientY),
+        w: Math.abs(e.clientX - start.x),
+        h: Math.abs(e.clientY - start.y),
+    };
+}
 canvas.addEventListener("mousedown", function (e) {
     start = { x: e.clientX, y: e.clientY };
 });
 canvas.addEventListener("mousemove", function (e) {
-    if (!start) {
+    var r = getMousedRect(e);
+    if (!r) {
         return;
     }
     sel.render();
-    context.strokeRect(start.x, start.y, e.clientX - start.x, e.clientY - start.y);
+    context.strokeRect(r.x, r.y, r.w, r.h);
 });
 canvas.addEventListener("mouseup", function (e) {
-    if (!start) {
+    var r = getMousedRect(e);
+    if (!r) {
         return;
     }
     if (e.shiftKey) {
-        sel.subtractRect({
-            x: start.x,
-            y: start.y,
-            w: e.clientX - start.x,
-            h: e.clientY - start.y,
-        });
+        sel.subtractRect(r);
     }
     else {
-        sel.addRect({
-            x: start.x,
-            y: start.y,
-            w: e.clientX - start.x,
-            h: e.clientY - start.y,
-        });
+        sel.addRect(r);
     }
     sel.render();
     // sel.getOutlines();
