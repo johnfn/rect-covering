@@ -244,7 +244,14 @@ var ArbitrarySelection = (function () {
     };
     ArbitrarySelection.prototype.getOutlines = function () {
         var components = this.getConnectedComponents();
-        var outline = this.getOutlineFor(components[0]);
+        for (var _i = 0, components_1 = components; _i < components_1.length; _i++) {
+            var c = components_1[_i];
+            var outline = this.getOutlineFor(c);
+            for (var _a = 0, outline_1 = outline; _a < outline_1.length; _a++) {
+                var l = outline_1[_a];
+                this.drawLine(l);
+            }
+        }
         /*
         for (const l of outline[0]) {
           this.drawLine(l);
@@ -259,11 +266,13 @@ var ArbitrarySelection = (function () {
             var rect = comp_1[_i];
             allLines = allLines.concat(getLinesFromRect(rect));
         }
-        context.strokeStyle = "#ffffff";
+        context.strokeStyle = "#000";
         // Alternate solution if this proves too hard:
         // Subdivide all lines on intersection points, then remove all
         // duplicates.
         // Actually that might even be better heh
+        // The strategy here is to basically remove all overlapping segments. it's hard because
+        // a single line could have multiple overlapping segments.
         for (var i = 0; i < allLines.length; i++) {
             var line1 = allLines[i];
             if (!line1) {
@@ -287,12 +296,7 @@ var ArbitrarySelection = (function () {
                 }
             }
         }
-        var nonOverlappingLines = allLines.filter(function (l) { return l !== undefined; });
-        for (var _a = 0, nonOverlappingLines_1 = nonOverlappingLines; _a < nonOverlappingLines_1.length; _a++) {
-            var l = nonOverlappingLines_1[_a];
-            this.drawLine(l);
-        }
-        return [];
+        return allLines.filter(function (l) { return l !== undefined; });
     };
     ArbitrarySelection.prototype.render = function () {
         context.clearRect(0, 0, 800, 800);
@@ -312,5 +316,4 @@ sel.addRect({ x: 0, y: 0, w: 200, h: 200 });
 sel.subtractRect({ x: 50, y: 50, w: 100, h: 100 });
 sel.addRect({ x: 200, y: 200, w: 200, h: 200 });
 sel.subtractRect({ x: 250, y: 250, w: 100, h: 100 });
-sel.render();
 sel.getOutlines();

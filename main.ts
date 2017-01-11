@@ -316,7 +316,14 @@ class ArbitrarySelection {
 
   getOutlines(): Line[][] {
     const components = this.getConnectedComponents();
-    const outline = this.getOutlineFor(components[0]);
+
+    for (const c of components) {
+      const outline = this.getOutlineFor(c);
+
+      for (const l of outline) {
+        this.drawLine(l);
+      }
+    }
 
     /*
     for (const l of outline[0]) {
@@ -327,7 +334,7 @@ class ArbitrarySelection {
     return [];
   }
 
-  private getOutlineFor(comp: Rect[]): Line[][] {
+  private getOutlineFor(comp: Rect[]): Line[] {
     let allLines: (Line | undefined)[] = [];
     let linesOnOutline: Line[] = [];
 
@@ -335,13 +342,16 @@ class ArbitrarySelection {
       allLines = allLines.concat(getLinesFromRect(rect));
     }
 
-    context.strokeStyle = "#ffffff";
+    context.strokeStyle = "#000";
 
     // Alternate solution if this proves too hard:
     // Subdivide all lines on intersection points, then remove all
     // duplicates.
 
     // Actually that might even be better heh
+
+    // The strategy here is to basically remove all overlapping segments. it's hard because
+    // a single line could have multiple overlapping segments.
 
     for (let i = 0; i < allLines.length; i++) {
       const line1 = allLines[i];
@@ -367,13 +377,7 @@ class ArbitrarySelection {
       }
     }
 
-    const nonOverlappingLines: Line[] = allLines.filter(l => l !== undefined) as Line[];
-
-    for (const l of nonOverlappingLines) {
-      this.drawLine(l);
-    }
-
-    return [];
+    return allLines.filter(l => l !== undefined) as Line[];
   }
 
   render(): void {
@@ -398,7 +402,5 @@ sel.subtractRect({ x: 50, y: 50, w: 100, h: 100 })
 
 sel.addRect({ x: 200, y: 200, w: 200, h: 200 })
 sel.subtractRect({ x: 250, y: 250, w: 100, h: 100 })
-
-sel.render();
 
 sel.getOutlines();
