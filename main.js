@@ -15,6 +15,12 @@ function lineLength(l) {
     return Math.sqrt((l.x2 - l.x1) * (l.x2 - l.x1) +
         (l.y2 - l.y1) * (l.y2 - l.y1));
 }
+function doLinesShareAVertex(one, two) {
+    return ((one.x1 === two.x1 && one.y1 === two.y1) ||
+        (one.x1 === two.x2 && one.y1 === two.y2) ||
+        (one.x2 === two.x1 && one.y2 === two.y1) ||
+        (one.x2 === two.x2 && one.y2 === two.y2));
+}
 function getLinesFromRect(r) {
     return [
         { x1: r.x, y1: r.y, x2: r.x + r.w, y2: r.y },
@@ -26,12 +32,19 @@ function getLinesFromRect(r) {
 function serializeRect(r) {
     return r.x + "|" + r.y + "|" + r.w + "|" + r.h;
 }
-function isDegenerateLine(l) {
-    return lineLength(l) === 0;
-}
 function deserializeRect(s) {
     var _a = s.split("|").map(function (x) { return Number(x); }), x = _a[0], y = _a[1], w = _a[2], h = _a[3];
     return { x: x, y: y, w: w, h: h };
+}
+function serializeLine(l) {
+    return l.x1 + "|" + l.x2 + "|" + l.y1 + "|" + l.y2;
+}
+function deserializeLine(s) {
+    var _a = s.split("|").map(function (x) { return Number(x); }), x1 = _a[0], x2 = _a[1], y1 = _a[2], y2 = _a[3];
+    return { x1: x1, x2: x2, y1: y1, y2: y2 };
+}
+function isDegenerateLine(l) {
+    return lineLength(l) === 0;
 }
 function within(val, start, end) {
     var low = Math.min(start, end);
@@ -266,9 +279,14 @@ var ArbitrarySelection = (function () {
         for (var _i = 0, components_1 = components; _i < components_1.length; _i++) {
             var c = components_1[_i];
             var outline = this.getOutlineFor(c);
-            for (var _a = 0, outline_1 = outline; _a < outline_1.length; _a++) {
-                var l = outline_1[_a];
-                this.drawLine(l);
+            var components_2 = this.getComponentsOfOutline(outline);
+            for (var _a = 0, components_3 = components_2; _a < components_3.length; _a++) {
+                var cc = components_3[_a];
+                context.strokeStyle = getRandomColor();
+                for (var _b = 0, cc_1 = cc; _b < cc_1.length; _b++) {
+                    var l = cc_1[_b];
+                    this.drawLine(l);
+                }
             }
         }
         return [];
@@ -312,6 +330,35 @@ var ArbitrarySelection = (function () {
             }
         }
         return allLines.filter(function (l) { return l !== undefined; });
+    };
+    ArbitrarySelection.prototype.getComponentsOfOutline = function (outline) {
+        var result = [];
+        var visited = {};
+        for (var _i = 0, outline_1 = outline; _i < outline_1.length; _i++) {
+            var line = outline_1[_i];
+            if (visited[serializeLine(line)]) {
+                continue;
+            }
+            visited[serializeLine(line)] = true;
+            var sequence = [line];
+            var _loop_2 = function () {
+                var current = sequence[sequence.length - 1];
+                var next = outline.filter(function (l) { return l !== current && !visited[serializeLine(l)] && doLinesShareAVertex(l, current); })[0];
+                if (!next) {
+                    return "break";
+                }
+                visited[serializeLine(next)] = true;
+                sequence.push(next);
+            };
+            while (true) {
+                var state_1 = _loop_2();
+                if (state_1 === "break")
+                    break;
+            }
+            console.log(sequence.length);
+            result.push(sequence);
+        }
+        return result;
     };
     ArbitrarySelection.prototype.render = function () {
         context.clearRect(0, 0, 800, 800);
@@ -364,7 +411,7 @@ canvas.addEventListener("mouseup", function (e) {
     else {
         sel.addRect(r);
     }
-    sel.render();
-    // sel.getOutlines();
+    // sel.render();
+    sel.getOutlines();
     start = undefined;
 });

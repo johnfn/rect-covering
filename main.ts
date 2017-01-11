@@ -37,6 +37,15 @@ function lineLength(l: Line): number {
   );
 }
 
+function doLinesShareAVertex(one: Line, two: Line): boolean {
+  return (
+    (one.x1 === two.x1 && one.y1 === two.y1) ||
+    (one.x1 === two.x2 && one.y1 === two.y2) ||
+    (one.x2 === two.x1 && one.y2 === two.y1) ||
+    (one.x2 === two.x2 && one.y2 === two.y2)
+  );
+}
+
 function getLinesFromRect(r: Rect): Line[] {
   return [
     { x1: r.x      , y1: r.y      , x2: r.x + r.w, y2: r.y       },
@@ -50,14 +59,24 @@ function serializeRect(r: Rect): string {
   return `${ r.x }|${ r.y }|${ r.w }|${ r.h }`;
 }
 
-function isDegenerateLine(l: Line): boolean {
-  return lineLength(l) === 0;
-}
-
 function deserializeRect(s: string): Rect {
   const [ x, y, w, h ] = s.split("|").map(x => Number(x));
 
   return { x, y, w, h };
+}
+
+function serializeLine(l: Line): string {
+  return `${ l.x1 }|${ l.x2 }|${ l.y1 }|${ l.y2 }`;
+}
+
+function deserializeLine(s: string): Line {
+  const [ x1, x2, y1, y2 ] = s.split("|").map(x => Number(x));
+
+  return { x1, x2, y1, y2 };
+}
+
+function isDegenerateLine(l: Line): boolean {
+  return lineLength(l) === 0;
 }
 
 function within(val: number, start: number, end: number): boolean {
@@ -340,9 +359,14 @@ class ArbitrarySelection {
 
     for (const c of components) {
       const outline = this.getOutlineFor(c);
+      const components = this.getComponentsOfOutline(outline);
 
-      for (const l of outline) {
-        this.drawLine(l);
+      for (const cc of components) {
+        context.strokeStyle = getRandomColor();
+
+        for (const l of cc) {
+          this.drawLine(l);
+        }
       }
     }
 
@@ -394,6 +418,34 @@ class ArbitrarySelection {
     }
 
     return allLines.filter(l => l !== undefined) as Line[];
+  }
+
+  private getComponentsOfOutline(outline: Line[]): Line[][] {
+    let result: Line[][] = [];
+    let visited: { [key: string]: boolean } = {};
+
+    for (const line of outline) {
+      if (visited[serializeLine(line)]) { continue; }
+      visited[serializeLine(line)] = true;
+
+      const sequence = [line];
+
+      while (true) {
+        const current = sequence[sequence.length - 1];
+        const next = outline.filter(l => l !== current && !visited[serializeLine(l)] && doLinesShareAVertex(l, current))[0];
+
+        if (!next) { break; }
+
+        visited[serializeLine(next)] = true;
+        sequence.push(next);
+      }
+
+      console.log(sequence.length);
+
+      result.push(sequence);
+    }
+
+    return result;
   }
 
   render(): void {
@@ -459,8 +511,8 @@ canvas.addEventListener("mouseup", e => {
     sel.addRect(r);
   }
 
-  sel.render();
-  // sel.getOutlines();
+  // sel.render();
+  sel.getOutlines();
 
   start = undefined;
 });
