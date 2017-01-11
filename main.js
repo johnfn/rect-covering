@@ -118,10 +118,15 @@ function getNonOverlap(one, two) {
     }
 }
 // consider overlapping edges as intersection, but not overlapping corners.
-function doRectsIntersect(r1, r2) {
+function doRectsIntersect(r1, r2, props) {
     var intersection = getIntersection(r1, r2, true);
-    return !!intersection && (intersection.w > 0 ||
-        intersection.h > 0);
+    if (props.edgesOnlyIsAnIntersection) {
+        return !!intersection && (intersection.w > 0 ||
+            intersection.h > 0);
+    }
+    else {
+        return !!intersection && (intersection.w * intersection.h > 0);
+    }
 }
 function completelyContains(larger, smaller) {
     return larger.x <= smaller.x &&
@@ -163,13 +168,19 @@ var ArbitrarySelection = (function () {
     function ArbitrarySelection() {
         this.cover = [];
     }
-    ArbitrarySelection.prototype.addRect = function (rect) {
-        this.cover.push(rect);
-    };
-    ArbitrarySelection.prototype.subtractRect = function (subtractedRect) {
-        var intersectingRects = this.cover.filter(function (r) { return doRectsIntersect(r, subtractedRect); });
+    ArbitrarySelection.prototype.addRect = function (rectToAdd) {
+        var intersectingRects = this.cover.filter(function (r) { return doRectsIntersect(r, rectToAdd, { edgesOnlyIsAnIntersection: false }); });
         for (var _i = 0, intersectingRects_1 = intersectingRects; _i < intersectingRects_1.length; _i++) {
             var rect = intersectingRects_1[_i];
+            this.subtractRect(getIntersection(rect, rectToAdd));
+        }
+        this.cover.push(rectToAdd);
+    };
+    ArbitrarySelection.prototype.subtractRect = function (subtractedRect) {
+        var intersectingRects = this.cover.filter(function (r) { return doRectsIntersect(r, subtractedRect, { edgesOnlyIsAnIntersection: false }); });
+        console.log("count of intersections:", intersectingRects.length);
+        for (var _i = 0, intersectingRects_2 = intersectingRects; _i < intersectingRects_2.length; _i++) {
+            var rect = intersectingRects_2[_i];
             this.cover.splice(this.cover.indexOf(rect), 1);
             // subtractedRect completely contains rect
             if (completelyContains(subtractedRect, rect)) {
@@ -223,7 +234,7 @@ var ArbitrarySelection = (function () {
                 if (component[serializeRect(rect)]) {
                     return "continue";
                 }
-                var intersectingRects = this_1.cover.filter(function (r) { return doRectsIntersect(r, rect); });
+                var intersectingRects = this_1.cover.filter(function (r) { return doRectsIntersect(r, rect, { edgesOnlyIsAnIntersection: true }); });
                 component[serializeRect(rect)] = true;
                 newEdge = newEdge.concat(intersectingRects);
             };
@@ -312,11 +323,21 @@ var ArbitrarySelection = (function () {
  * Shift+Click+Drag to remove rectangle
  */
 var sel = new ArbitrarySelection();
-var start = { x: 0, y: 0 };
+var start = undefined;
 canvas.addEventListener("mousedown", function (e) {
     start = { x: e.clientX, y: e.clientY };
 });
+canvas.addEventListener("mousemove", function (e) {
+    if (!start) {
+        return;
+    }
+    sel.render();
+    context.strokeRect(start.x, start.y, e.clientX - start.x, e.clientY - start.y);
+});
 canvas.addEventListener("mouseup", function (e) {
+    if (!start) {
+        return;
+    }
     if (e.shiftKey) {
         sel.subtractRect({
             x: start.x,
@@ -333,6 +354,7 @@ canvas.addEventListener("mouseup", function (e) {
             h: e.clientY - start.y,
         });
     }
-    sel.getOutlines();
     sel.render();
+    // sel.getOutlines();
+    start = undefined;
 });

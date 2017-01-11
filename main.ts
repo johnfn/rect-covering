@@ -164,12 +164,16 @@ function getNonOverlap(one: Line, two: Line): Line[] | undefined {
 }
 
 // consider overlapping edges as intersection, but not overlapping corners.
-function doRectsIntersect(r1: Rect, r2: Rect): boolean {
+function doRectsIntersect(r1: Rect, r2: Rect, props: { edgesOnlyIsAnIntersection: boolean }): boolean {
   const intersection = getIntersection(r1, r2, true);
 
-  return !!intersection && (
-           intersection.w > 0 ||
-           intersection.h > 0 );
+  if (props.edgesOnlyIsAnIntersection) {
+    return !!intersection && (
+            intersection.w > 0 ||
+            intersection.h > 0 );
+  } else {
+    return !!intersection && (intersection.w * intersection.h > 0);
+  }
 }
 
 function completelyContains(larger: Rect, smaller: Rect): boolean {
@@ -222,12 +226,20 @@ class ArbitrarySelection {
 
   }
 
-  addRect(rect: Rect): void {
-    this.cover.push(rect);
+  addRect(rectToAdd: Rect): void {
+    const intersectingRects = this.cover.filter(r => doRectsIntersect(r, rectToAdd, { edgesOnlyIsAnIntersection: false }));
+
+    for (const rect of intersectingRects) {
+      this.subtractRect(getIntersection(rect, rectToAdd)!);
+    }
+
+    this.cover.push(rectToAdd);
   }
 
   subtractRect(subtractedRect: Rect): void {
-    const intersectingRects = this.cover.filter(r => doRectsIntersect(r, subtractedRect));
+    const intersectingRects = this.cover.filter(r => doRectsIntersect(r, subtractedRect, { edgesOnlyIsAnIntersection: false }));
+
+    console.log("count of intersections:", intersectingRects.length);
 
     for (const rect of intersectingRects) {
       this.cover.splice(this.cover.indexOf(rect), 1);
@@ -295,7 +307,7 @@ class ArbitrarySelection {
       for (const rect of edge) {
         if (component[serializeRect(rect)]) { continue; }
 
-        const intersectingRects = this.cover.filter(r => doRectsIntersect(r, rect));
+        const intersectingRects = this.cover.filter(r => doRectsIntersect(r, rect, { edgesOnlyIsAnIntersection: true }));
 
         component[serializeRect(rect)] = true;
         newEdge = newEdge.concat(intersectingRects);
@@ -397,13 +409,28 @@ class ArbitrarySelection {
 
 const sel = new ArbitrarySelection();
 
-let start = { x: 0, y: 0 };
+let start: { x: number, y: number } | undefined = undefined;
 
 canvas.addEventListener("mousedown", e => {
   start = { x: e.clientX, y: e.clientY };
 });
 
+canvas.addEventListener("mousemove", e => {
+  if (!start) { return; }
+
+  sel.render();
+
+  context.strokeRect(
+    start.x,
+    start.y,
+    e.clientX - start.x,
+    e.clientY - start.y,
+  );
+});
+
 canvas.addEventListener("mouseup", e => {
+  if (!start) { return; }
+
   if (e.shiftKey) {
     sel.subtractRect({
       x: start.x,
@@ -420,6 +447,8 @@ canvas.addEventListener("mouseup", e => {
     });
   }
 
-  sel.getOutlines();
   sel.render();
+  // sel.getOutlines();
+
+  start = undefined;
 });
