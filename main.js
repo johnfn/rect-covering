@@ -244,6 +244,7 @@ var ArbitrarySelection = (function () {
     };
     ArbitrarySelection.prototype.getOutlines = function () {
         var components = this.getConnectedComponents();
+        context.clearRect(0, 0, 800, 800);
         for (var _i = 0, components_1 = components; _i < components_1.length; _i++) {
             var c = components_1[_i];
             var outline = this.getOutlineFor(c);
@@ -252,11 +253,6 @@ var ArbitrarySelection = (function () {
                 this.drawLine(l);
             }
         }
-        /*
-        for (const l of outline[0]) {
-          this.drawLine(l);
-        }
-        */
         return [];
     };
     ArbitrarySelection.prototype.getOutlineFor = function (comp) {
@@ -271,8 +267,9 @@ var ArbitrarySelection = (function () {
         // Subdivide all lines on intersection points, then remove all
         // duplicates.
         // Actually that might even be better heh
-        // The strategy here is to basically remove all overlapping segments. it's hard because
-        // a single line could have multiple overlapping segments.
+        // The strategy here is to basically remove all overlapping segments. it's
+        // hard because a single line could be overlapping with multiple other
+        // lines.
         for (var i = 0; i < allLines.length; i++) {
             var line1 = allLines[i];
             if (!line1) {
@@ -310,10 +307,32 @@ var ArbitrarySelection = (function () {
 }());
 /**
  * Usage example
+ *
+ * Click+Drag to add rectangle
+ * Shift+Click+Drag to remove rectangle
  */
 var sel = new ArbitrarySelection();
-sel.addRect({ x: 0, y: 0, w: 200, h: 200 });
-sel.subtractRect({ x: 50, y: 50, w: 100, h: 100 });
-sel.addRect({ x: 200, y: 200, w: 200, h: 200 });
-sel.subtractRect({ x: 250, y: 250, w: 100, h: 100 });
-sel.getOutlines();
+var start = { x: 0, y: 0 };
+canvas.addEventListener("mousedown", function (e) {
+    start = { x: e.clientX, y: e.clientY };
+});
+canvas.addEventListener("mouseup", function (e) {
+    if (e.shiftKey) {
+        sel.subtractRect({
+            x: start.x,
+            y: start.y,
+            w: e.clientX - start.x,
+            h: e.clientY - start.y,
+        });
+    }
+    else {
+        sel.addRect({
+            x: start.x,
+            y: start.y,
+            w: e.clientX - start.x,
+            h: e.clientY - start.y,
+        });
+    }
+    sel.getOutlines();
+    sel.render();
+});

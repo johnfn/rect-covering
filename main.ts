@@ -317,6 +317,8 @@ class ArbitrarySelection {
   getOutlines(): Line[][] {
     const components = this.getConnectedComponents();
 
+    context.clearRect(0, 0, 800, 800);
+
     for (const c of components) {
       const outline = this.getOutlineFor(c);
 
@@ -324,12 +326,6 @@ class ArbitrarySelection {
         this.drawLine(l);
       }
     }
-
-    /*
-    for (const l of outline[0]) {
-      this.drawLine(l);
-    }
-    */
 
     return [];
   }
@@ -350,8 +346,9 @@ class ArbitrarySelection {
 
     // Actually that might even be better heh
 
-    // The strategy here is to basically remove all overlapping segments. it's hard because
-    // a single line could have multiple overlapping segments.
+    // The strategy here is to basically remove all overlapping segments. it's
+    // hard because a single line could be overlapping with multiple other
+    // lines.
 
     for (let i = 0; i < allLines.length; i++) {
       const line1 = allLines[i];
@@ -393,14 +390,36 @@ class ArbitrarySelection {
 
 /**
  * Usage example
+ *
+ * Click+Drag to add rectangle
+ * Shift+Click+Drag to remove rectangle
  */
 
 const sel = new ArbitrarySelection();
 
-sel.addRect({ x: 0, y: 0, w: 200, h: 200 })
-sel.subtractRect({ x: 50, y: 50, w: 100, h: 100 })
+let start = { x: 0, y: 0 };
 
-sel.addRect({ x: 200, y: 200, w: 200, h: 200 })
-sel.subtractRect({ x: 250, y: 250, w: 100, h: 100 })
+canvas.addEventListener("mousedown", e => {
+  start = { x: e.clientX, y: e.clientY };
+});
 
-sel.getOutlines();
+canvas.addEventListener("mouseup", e => {
+  if (e.shiftKey) {
+    sel.subtractRect({
+      x: start.x,
+      y: start.y,
+      w: e.clientX - start.x,
+      h: e.clientY - start.y,
+    });
+  } else {
+    sel.addRect({
+      x: start.x,
+      y: start.y,
+      w: e.clientX - start.x,
+      h: e.clientY - start.y,
+    });
+  }
+
+  sel.getOutlines();
+  sel.render();
+});
