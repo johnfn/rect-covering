@@ -1,3 +1,4 @@
+// TODO - isolate each path separately and put them in order.
 var canvas = document.getElementsByTagName("canvas").item(0);
 var context = canvas.getContext("2d");
 context.translate(0.5, 0.5);
@@ -169,7 +170,11 @@ var ArbitrarySelection = (function () {
         this.cover = [];
     }
     ArbitrarySelection.prototype.addRect = function (rectToAdd) {
+        var subsumingRects = this.cover.filter(function (r) { return completelyContains(r, rectToAdd); });
         var intersectingRects = this.cover.filter(function (r) { return doRectsIntersect(r, rectToAdd, { edgesOnlyIsAnIntersection: false }); });
+        if (subsumingRects.length > 0) {
+            return;
+        }
         for (var _i = 0, intersectingRects_1 = intersectingRects; _i < intersectingRects_1.length; _i++) {
             var rect = intersectingRects_1[_i];
             this.subtractRect(getIntersection(rect, rectToAdd));

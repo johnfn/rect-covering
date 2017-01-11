@@ -1,3 +1,5 @@
+// TODO - isolate each path separately and put them in order.
+
 const canvas = document.getElementsByTagName("canvas").item(0);
 const context = canvas.getContext("2d")!;
 
@@ -227,7 +229,12 @@ class ArbitrarySelection {
   }
 
   addRect(rectToAdd: Rect): void {
+    const subsumingRects = this.cover.filter(r => completelyContains(r, rectToAdd));
     const intersectingRects = this.cover.filter(r => doRectsIntersect(r, rectToAdd, { edgesOnlyIsAnIntersection: false }));
+
+    if (subsumingRects.length > 0) {
+      return;
+    }
 
     for (const rect of intersectingRects) {
       this.subtractRect(getIntersection(rect, rectToAdd)!);
