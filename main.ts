@@ -52,6 +52,98 @@ class Line {
 
     return new Line({ x1, x2, y1, y2 });
   }
+
+  // Must be horizontally/vertically oriented lines
+  // Does not consider intersection, only overlap
+  getOverlap(other: Line): Line | undefined {
+    const orientedByX = (
+      this.x1 === this.x2 &&
+      this.x1 === other.x1 &&
+      this.x1 === other.x2
+    );
+
+    const orientedByY = (
+      this.y1 === this.y2 &&
+      this.y1 === other.y1 &&
+      this.y1 === other.y2
+    );
+
+    if (!orientedByX && !orientedByY) { return undefined; }
+
+    const summedLength  = this.length + other.length;
+    const overallLength = new Line({
+      x1: Math.min(this.x1, other.x1),
+      y1: Math.min(this.y1, other.y1),
+      x2: Math.max(this.x2, other.x2),
+      y2: Math.max(this.y2, other.y2),
+    }).length;
+
+    if (overallLength >= summedLength) {
+      // These lines do not overlap.
+
+      return undefined;
+    }
+
+    if (orientedByX) {
+      return new Line({
+        x1: this.x1,
+        x2: this.x2,
+        y1: Math.max(this.y1, other.y1),
+        y2: Math.min(this.y2, other.y2),
+      });
+    } else /* if (orientedByY) */ {
+      return new Line({
+        y1: this.y1,
+        y2: this.y2,
+        x1: Math.max(this.x1, other.x1),
+        x2: Math.min(this.x2, other.x2),
+      });
+    }
+  }
+
+  // A----B----C----D
+  // AD - BC returns AB and CD.
+  getNonOverlappingSections(other: Line): Line[] | undefined {
+    const orientedByX = (
+      this.x1 === this.x2 &&
+      this.x1 === other.x1 &&
+      this.x1 === other.x2
+    );
+
+    const orientedByY = (
+      this.y1 === this.y2 &&
+      this.y1 === other.y1 &&
+      this.y1 === other.y2
+    );
+
+    if (!orientedByX && !orientedByY) { return undefined; }
+
+    const summedLength  = new Line(this).length + new Line(other).length;
+    const overallLength = new Line({
+      x1: Math.min(this.x1, other.x1),
+      y1: Math.min(this.y1, other.y1),
+      x2: Math.max(this.x1, other.x1),
+      y2: Math.max(this.y1, other.y1),
+    }).length;
+
+    if (overallLength >= summedLength) {
+      // These lines do not overlap.
+
+      return undefined;
+    }
+
+    if (orientedByX) {
+      return [
+        new Line({ x1: this.x1, x2: this.x2, y1: Math.min(this.y1, other.y1), y2: Math.max(this.y1, other.y1), }),
+        new Line({ x1: this.x1, x2: this.x2, y1: Math.min(this.y2, other.y2), y2: Math.max(this.y2, other.y2), }),
+      ].filter(l => !l.isDegenerate);
+    } else /* if (orientedByY) */ {
+      return [
+        new Line({ y1: this.y1, y2: this.y2, x1: Math.min(this.x1, other.x1), x2: Math.max(this.x1, other.x1), }),
+        new Line({ y1: this.y1, y2: this.y2, x1: Math.min(this.x2, other.x2), x2: Math.max(this.x2, other.x2), }),
+      ].filter(l => !l.isDegenerate);
+    }
+  }
 }
 
 class Rect {
@@ -72,6 +164,12 @@ class Rect {
     this._h = props.h;
   }
 
+  static DeserializeRect(s: string): Rect {
+    const [ x, y, w, h ] = s.split("|").map(x => Number(x));
+
+    return new Rect({ x, y, w, h });
+  }
+
   getLinesFromRect(): Line[] {
     return [
       new Line({ x1: this.x         , y1: this.y         , x2: this.x + this.w, y2: this.y          }),
@@ -85,122 +183,17 @@ class Rect {
     return `${ this.x }|${ this.y }|${ this.w }|${ this.h }`;
   }
 
-  static DeserializeRect(s: string): Rect {
-    const [ x, y, w, h ] = s.split("|").map(x => Number(x));
+  // consider overlapping edges as intersection, but not overlapping corners.
+  intersects(other: Rect, props: { edgesOnlyIsAnIntersection: boolean }): boolean {
+    const intersection = getIntersection(this, other, true);
 
-    return new Rect({ x, y, w, h });
-  }
-}
-
-function within(val: number, start: number, end: number): boolean {
-  const low = Math.min(start, end);
-  const high = Math.max(start, end);
-
-  return val >= low && val <= high;
-}
-
-// Must be horizontally/vertically oriented lines
-// Does not consider intersection, only overlap
-function getLineOverlap(one: Line, two: Line): Line | undefined {
-  const orientedByX = (
-    one.x1 === one.x2 &&
-    one.x1 === two.x1 &&
-    one.x1 === two.x2
-  );
-
-  const orientedByY = (
-    one.y1 === one.y2 &&
-    one.y1 === two.y1 &&
-    one.y1 === two.y2
-  );
-
-  if (!orientedByX && !orientedByY) { return undefined; }
-
-  const summedLength  = one.length + two.length;
-  const overallLength = new Line({
-    x1: Math.min(one.x1, two.x1),
-    y1: Math.min(one.y1, two.y1),
-    x2: Math.max(one.x2, two.x2),
-    y2: Math.max(one.y2, two.y2),
-  }).length;
-
-  if (overallLength >= summedLength) {
-    // These lines do not overlap.
-
-    return undefined;
-  }
-
-  if (orientedByX) {
-    return new Line({
-      x1: one.x1,
-      x2: one.x2,
-      y1: Math.max(one.y1, two.y1),
-      y2: Math.min(one.y2, two.y2),
-    });
-  } else /* if (orientedByY) */ {
-    return new Line({
-      y1: one.y1,
-      y2: one.y2,
-      x1: Math.max(one.x1, two.x1),
-      x2: Math.min(one.x2, two.x2),
-    });
-  }
-}
-
-// A----B----C----D
-// AD - BC returns AB and CD.
-function getNonOverlap(one: Line, two: Line): Line[] | undefined {
-  const orientedByX = (
-    one.x1 === one.x2 &&
-    one.x1 === two.x1 &&
-    one.x1 === two.x2
-  );
-
-  const orientedByY = (
-    one.y1 === one.y2 &&
-    one.y1 === two.y1 &&
-    one.y1 === two.y2
-  );
-
-  if (!orientedByX && !orientedByY) { return undefined; }
-
-  const summedLength  = new Line(one).length + new Line(two).length;
-  const overallLength = new Line({
-    x1: Math.min(one.x1, two.x1),
-    y1: Math.min(one.y1, two.y1),
-    x2: Math.max(one.x1, two.x1),
-    y2: Math.max(one.y1, two.y1),
-  }).length;
-
-  if (overallLength >= summedLength) {
-    // These lines do not overlap.
-
-    return undefined;
-  }
-
-  if (orientedByX) {
-    return [
-      new Line({ x1: one.x1, x2: one.x2, y1: Math.min(one.y1, two.y1), y2: Math.max(one.y1, two.y1), }),
-      new Line({ x1: one.x1, x2: one.x2, y1: Math.min(one.y2, two.y2), y2: Math.max(one.y2, two.y2), }),
-    ].filter(l => !l.isDegenerate);
-  } else /* if (orientedByY) */ {
-    return [
-      new Line({ y1: one.y1, y2: one.y2, x1: Math.min(one.x1, two.x1), x2: Math.max(one.x1, two.x1), }),
-      new Line({ y1: one.y1, y2: one.y2, x1: Math.min(one.x2, two.x2), x2: Math.max(one.x2, two.x2), }),
-    ].filter(l => !l.isDegenerate);
-  }
-}
-
-// consider overlapping edges as intersection, but not overlapping corners.
-function doRectsIntersect(r1: Rect, r2: Rect, props: { edgesOnlyIsAnIntersection: boolean }): boolean {
-  const intersection = getIntersection(r1, r2, true);
-
-  if (props.edgesOnlyIsAnIntersection) {
-    return !!intersection && (
-            intersection.w > 0 ||
-            intersection.h > 0 );
-  } else {
-    return !!intersection && (intersection.w * intersection.h > 0);
+    if (props.edgesOnlyIsAnIntersection) {
+      return !!intersection && (
+              intersection.w > 0 ||
+              intersection.h > 0 );
+    } else {
+      return !!intersection && (intersection.w * intersection.h > 0);
+    }
   }
 }
 
@@ -256,7 +249,7 @@ class ArbitrarySelection {
 
   addRect(rectToAdd: Rect): void {
     const subsumingRects = this.cover.filter(r => completelyContains(r, rectToAdd));
-    const intersectingRects = this.cover.filter(r => doRectsIntersect(r, rectToAdd, { edgesOnlyIsAnIntersection: false }));
+    const intersectingRects = this.cover.filter(r => r.intersects(rectToAdd, { edgesOnlyIsAnIntersection: false }));
 
     if (subsumingRects.length > 0) {
       return;
@@ -269,19 +262,19 @@ class ArbitrarySelection {
     this.cover.push(rectToAdd);
   }
 
-  subtractRect(subtractedRect: Rect): void {
-    const intersectingRects = this.cover.filter(r => doRectsIntersect(r, subtractedRect, { edgesOnlyIsAnIntersection: false }));
+  subtractRect(rectToSubtract: Rect): void {
+    const intersectingRects = this.cover.filter(r => r.intersects(rectToSubtract, { edgesOnlyIsAnIntersection: false }));
 
     for (const rect of intersectingRects) {
-      // subtractedRect completely contains rect
+      // rectToSubtract completely contains rect
 
-      if (completelyContains(subtractedRect, rect)) {
+      if (completelyContains(rectToSubtract, rect)) {
         continue;
       }
 
-      // subtractedRect partially contains rect
+      // rectToSubtract partially contains rect
 
-      const subrectToRemove = getIntersection(subtractedRect, rect)!;
+      const subrectToRemove = getIntersection(rectToSubtract, rect)!;
 
       // rect completely contains subtractedRect
 
@@ -341,7 +334,7 @@ class ArbitrarySelection {
       for (const rect of edge) {
         if (component[rect.serialize()]) { continue; }
 
-        const intersectingRects = this.cover.filter(r => doRectsIntersect(r, rect, { edgesOnlyIsAnIntersection: true }));
+        const intersectingRects = this.cover.filter(r => r.intersects(rect, { edgesOnlyIsAnIntersection: true }));
 
         component[rect.serialize()] = true;
         newEdge = newEdge.concat(intersectingRects);
@@ -410,13 +403,13 @@ class ArbitrarySelection {
         if (!line2) { continue; }
         if (line1 === line2) { continue; }
 
-        const intersection = getLineOverlap(line1, line2);
+        const intersection = line1.getOverlap(line2);
 
         if (intersection) {
           allLines[i] = undefined;
           allLines[j] = undefined;
 
-          const newLines = getNonOverlap(line1, line2)!;
+          const newLines = line1.getNonOverlappingSections(line2);
 
           allLines = allLines.concat(newLines);
 
