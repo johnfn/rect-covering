@@ -1,4 +1,3 @@
-// TODO - isolate each path separately and put them in order.
 var canvas = document.getElementsByTagName("canvas").item(0);
 var context = canvas.getContext("2d");
 context.translate(0.5, 0.5);
@@ -179,7 +178,7 @@ var Rect = (function () {
     };
     // consider overlapping edges as intersection, but not overlapping corners.
     Rect.prototype.intersects = function (other, props) {
-        var intersection = getIntersection(this, other, true);
+        var intersection = this.getIntersection(other, true);
         if (props.edgesOnlyIsAnIntersection) {
             return !!intersection && (intersection.w > 0 ||
                 intersection.h > 0);
@@ -188,36 +187,36 @@ var Rect = (function () {
             return !!intersection && (intersection.w * intersection.h > 0);
         }
     };
+    Rect.prototype.completelyContains = function (smaller) {
+        return this.x <= smaller.x &&
+            this.x + this.w >= smaller.x + smaller.w &&
+            this.y <= smaller.y &&
+            this.y + this.h >= smaller.y + smaller.h;
+    };
+    Rect.prototype.getIntersection = function (other, edgesOnlyIsAnIntersection) {
+        if (edgesOnlyIsAnIntersection === void 0) { edgesOnlyIsAnIntersection = false; }
+        var xmin = Math.max(this.x, other.x);
+        var xmax1 = this.x + this.w;
+        var xmax2 = other.x + other.w;
+        var xmax = Math.min(xmax1, xmax2);
+        if (xmax > xmin || (edgesOnlyIsAnIntersection && xmax >= xmin)) {
+            var ymin = Math.max(this.y, other.y);
+            var ymax1 = this.y + this.h;
+            var ymax2 = other.y + other.h;
+            var ymax = Math.min(ymax1, ymax2);
+            if (ymax >= ymin || (edgesOnlyIsAnIntersection && ymax >= ymin)) {
+                return new Rect({
+                    x: xmin,
+                    y: ymin,
+                    w: xmax - xmin,
+                    h: ymax - ymin,
+                });
+            }
+        }
+        return undefined;
+    };
     return Rect;
 }());
-function completelyContains(larger, smaller) {
-    return larger.x <= smaller.x &&
-        larger.x + larger.w >= smaller.x + smaller.w &&
-        larger.y <= smaller.y &&
-        larger.y + larger.h >= smaller.y + smaller.h;
-}
-function getIntersection(r1, r2, edgesOnlyIsAnIntersection) {
-    if (edgesOnlyIsAnIntersection === void 0) { edgesOnlyIsAnIntersection = false; }
-    var xmin = Math.max(r1.x, r2.x);
-    var xmax1 = r1.x + r1.w;
-    var xmax2 = r2.x + r2.w;
-    var xmax = Math.min(xmax1, xmax2);
-    if (xmax > xmin || (edgesOnlyIsAnIntersection && xmax >= xmin)) {
-        var ymin = Math.max(r1.y, r2.y);
-        var ymax1 = r1.y + r1.h;
-        var ymax2 = r2.y + r2.h;
-        var ymax = Math.min(ymax1, ymax2);
-        if (ymax >= ymin || (edgesOnlyIsAnIntersection && ymax >= ymin)) {
-            return new Rect({
-                x: xmin,
-                y: ymin,
-                w: xmax - xmin,
-                h: ymax - ymin,
-            });
-        }
-    }
-    return undefined;
-}
 function getRandomColor() {
     var letters = '0123456789ABCDEF';
     var color = '#';
@@ -231,14 +230,14 @@ var ArbitrarySelection = (function () {
         this.cover = [];
     }
     ArbitrarySelection.prototype.addRect = function (rectToAdd) {
-        var subsumingRects = this.cover.filter(function (r) { return completelyContains(r, rectToAdd); });
+        var subsumingRects = this.cover.filter(function (r) { return r.completelyContains(rectToAdd); });
         var intersectingRects = this.cover.filter(function (r) { return r.intersects(rectToAdd, { edgesOnlyIsAnIntersection: false }); });
         if (subsumingRects.length > 0) {
             return;
         }
         for (var _i = 0, intersectingRects_1 = intersectingRects; _i < intersectingRects_1.length; _i++) {
             var rect = intersectingRects_1[_i];
-            this.subtractRect(getIntersection(rect, rectToAdd));
+            this.subtractRect(rect.getIntersection(rectToAdd));
         }
         this.cover.push(rectToAdd);
     };
@@ -247,11 +246,11 @@ var ArbitrarySelection = (function () {
         for (var _i = 0, intersectingRects_2 = intersectingRects; _i < intersectingRects_2.length; _i++) {
             var rect = intersectingRects_2[_i];
             // rectToSubtract completely contains rect
-            if (completelyContains(rectToSubtract, rect)) {
+            if (rectToSubtract.completelyContains(rect)) {
                 continue;
             }
             // rectToSubtract partially contains rect
-            var subrectToRemove = getIntersection(rectToSubtract, rect);
+            var subrectToRemove = rectToSubtract.getIntersection(rect);
             // rect completely contains subtractedRect
             // -------------------------
             // |          A            |

@@ -1,5 +1,3 @@
-// TODO - isolate each path separately and put them in order.
-
 const canvas = document.getElementsByTagName("canvas").item(0);
 const context = canvas.getContext("2d")!;
 
@@ -185,7 +183,7 @@ class Rect {
 
   // consider overlapping edges as intersection, but not overlapping corners.
   intersects(other: Rect, props: { edgesOnlyIsAnIntersection: boolean }): boolean {
-    const intersection = getIntersection(this, other, true);
+    const intersection = this.getIntersection(other, true);
 
     if (props.edgesOnlyIsAnIntersection) {
       return !!intersection && (
@@ -195,38 +193,39 @@ class Rect {
       return !!intersection && (intersection.w * intersection.h > 0);
     }
   }
-}
 
-function completelyContains(larger: Rect, smaller: Rect): boolean {
-  return larger.x            <= smaller.x             &&
-         larger.x + larger.w >= smaller.x + smaller.w &&
-         larger.y            <= smaller.y             &&
-         larger.y + larger.h >= smaller.y + smaller.h ;
-}
-
-function getIntersection(r1: Rect, r2: Rect, edgesOnlyIsAnIntersection = false): Rect | undefined {
-  const xmin = Math.max(r1.x, r2.x);
-  const xmax1 = r1.x + r1.w;
-  const xmax2 = r2.x + r2.w;
-  const xmax = Math.min(xmax1, xmax2);
-
-  if (xmax > xmin || (edgesOnlyIsAnIntersection && xmax >= xmin)) {
-    const ymin = Math.max(r1.y, r2.y);
-    const ymax1 = r1.y + r1.h;
-    const ymax2 = r2.y + r2.h;
-    const ymax = Math.min(ymax1, ymax2);
-
-    if (ymax >= ymin || (edgesOnlyIsAnIntersection && ymax >= ymin)) {
-      return new Rect({
-        x: xmin,
-        y: ymin,
-        w: xmax - xmin,
-        h: ymax - ymin,
-      });
-    }
+  completelyContains(smaller: Rect): boolean {
+    return this.x          <= smaller.x             &&
+           this.x + this.w >= smaller.x + smaller.w &&
+           this.y          <= smaller.y             &&
+           this.y + this.h >= smaller.y + smaller.h ;
   }
 
-  return undefined;
+  getIntersection(other: Rect, edgesOnlyIsAnIntersection = false): Rect | undefined {
+    const xmin = Math.max(this.x, other.x);
+    const xmax1 = this.x + this.w;
+    const xmax2 = other.x + other.w;
+    const xmax = Math.min(xmax1, xmax2);
+
+    if (xmax > xmin || (edgesOnlyIsAnIntersection && xmax >= xmin)) {
+      const ymin  = Math.max(this.y, other.y);
+      const ymax1 = this.y + this.h;
+      const ymax2 = other.y + other.h;
+      const ymax  = Math.min(ymax1, ymax2);
+
+      if (ymax >= ymin || (edgesOnlyIsAnIntersection && ymax >= ymin)) {
+        return new Rect({
+          x: xmin,
+          y: ymin,
+          w: xmax - xmin,
+          h: ymax - ymin,
+        });
+      }
+    }
+
+    return undefined;
+  }
+
 }
 
 function getRandomColor() {
@@ -248,7 +247,7 @@ class ArbitrarySelection {
   }
 
   addRect(rectToAdd: Rect): void {
-    const subsumingRects = this.cover.filter(r => completelyContains(r, rectToAdd));
+    const subsumingRects = this.cover.filter(r => r.completelyContains(rectToAdd));
     const intersectingRects = this.cover.filter(r => r.intersects(rectToAdd, { edgesOnlyIsAnIntersection: false }));
 
     if (subsumingRects.length > 0) {
@@ -256,7 +255,7 @@ class ArbitrarySelection {
     }
 
     for (const rect of intersectingRects) {
-      this.subtractRect(getIntersection(rect, rectToAdd)!);
+      this.subtractRect(rect.getIntersection(rectToAdd)!);
     }
 
     this.cover.push(rectToAdd);
@@ -268,13 +267,13 @@ class ArbitrarySelection {
     for (const rect of intersectingRects) {
       // rectToSubtract completely contains rect
 
-      if (completelyContains(rectToSubtract, rect)) {
+      if (rectToSubtract.completelyContains(rect)) {
         continue;
       }
 
       // rectToSubtract partially contains rect
 
-      const subrectToRemove = getIntersection(rectToSubtract, rect)!;
+      const subrectToRemove = rectToSubtract.getIntersection(rect)!;
 
       // rect completely contains subtractedRect
 
