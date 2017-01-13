@@ -5,78 +5,91 @@ const context = canvas.getContext("2d")!;
 
 context.translate(0.5, 0.5);
 
-interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
+class Line {
+  private _x1: number;
+  private _x2: number;
+  private _y1: number;
+  private _y2: number;
+
+  public get x1(): number { return this._x1; }
+  public get x2(): number { return this._x2; }
+  public get y1(): number { return this._y1; }
+  public get y2(): number { return this._y2; }
+
+  constructor(props: { x1: number, x2: number, y1: number, y2: number }) {
+    this._x1 = Math.min(props.x1, props.x2);
+    this._x2 = Math.max(props.x1, props.x2);
+    this._y1 = Math.min(props.y1, props.y2);
+    this._y2 = Math.max(props.y1, props.y2);
+  }
+
+  public get length(): number {
+    return Math.sqrt(
+      (this.x2 - this.x1) * (this.x2 - this.x1) +
+      (this.y2 - this.y1) * (this.y2 - this.y1)
+    );
+  }
+
+  public get isDegenerate(): boolean {
+    return this.length === 0;
+  }
+
+  sharesAVertexWith(other: Line): boolean {
+    return (
+      (this.x1 === other.x1 && this.y1 === other.y1) ||
+      (this.x1 === other.x2 && this.y1 === other.y2) ||
+      (this.x2 === other.x1 && this.y2 === other.y1) ||
+      (this.x2 === other.x2 && this.y2 === other.y2)
+    );
+  }
+
+  serialize(): string {
+    return `${ this.x1 }|${ this.x2 }|${ this.y1 }|${ this.y2 }`;
+  }
+
+  deserializeLine(s: string): Line {
+    const [ x1, x2, y1, y2 ] = s.split("|").map(x => Number(x));
+
+    return new Line({ x1, x2, y1, y2 });
+  }
 }
 
-interface Line {
-  x1: number;
-  x2: number;
-  y1: number;
-  y2: number;
-}
+class Rect {
+  private _x: number;
+  private _y: number;
+  private _w: number;
+  private _h: number;
 
-function sortPointsOnLine(l: Line): Line {
-  const { x1, x2, y1, y2 } = l;
+  public get x(): number { return this._x; }
+  public get y(): number { return this._y; }
+  public get w(): number { return this._w; }
+  public get h(): number { return this._h; }
 
-  return {
-    x1: Math.min(x1, x2),
-    x2: Math.max(x1, x2),
-    y1: Math.min(y1, y2),
-    y2: Math.max(y1, y2),
-  };
-}
+  constructor(props: { x: number, y: number, w: number, h: number }) {
+    this._x = props.x;
+    this._y = props.y;
+    this._w = props.w;
+    this._h = props.h;
+  }
 
-function lineLength(l: Line): number {
-  return Math.sqrt(
-    (l.x2 - l.x1) * (l.x2 - l.x1) +
-    (l.y2 - l.y1) * (l.y2 - l.y1)
-  );
-}
+  getLinesFromRect(): Line[] {
+    return [
+      new Line({ x1: this.x         , y1: this.y         , x2: this.x + this.w, y2: this.y          }),
+      new Line({ x1: this.x         , y1: this.y         , x2: this.x         , y2: this.y + this.h }),
+      new Line({ x1: this.x + this.w, y1: this.y + this.h, x2: this.x + this.w, y2: this.y          }),
+      new Line({ x1: this.x + this.w, y1: this.y + this.h, x2: this.x         , y2: this.y + this.h }),
+    ];
+  }
 
-function doLinesShareAVertex(one: Line, two: Line): boolean {
-  return (
-    (one.x1 === two.x1 && one.y1 === two.y1) ||
-    (one.x1 === two.x2 && one.y1 === two.y2) ||
-    (one.x2 === two.x1 && one.y2 === two.y1) ||
-    (one.x2 === two.x2 && one.y2 === two.y2)
-  );
-}
+  serialize(): string {
+    return `${ this.x }|${ this.y }|${ this.w }|${ this.h }`;
+  }
 
-function getLinesFromRect(r: Rect): Line[] {
-  return [
-    { x1: r.x      , y1: r.y      , x2: r.x + r.w, y2: r.y       },
-    { x1: r.x      , y1: r.y      , x2: r.x      , y2: r.y + r.h },
-    { x1: r.x + r.w, y1: r.y + r.h, x2: r.x + r.w, y2: r.y       },
-    { x1: r.x + r.w, y1: r.y + r.h, x2: r.x      , y2: r.y + r.h },
-  ].map(l => sortPointsOnLine(l));
-}
+  static DeserializeRect(s: string): Rect {
+    const [ x, y, w, h ] = s.split("|").map(x => Number(x));
 
-function serializeRect(r: Rect): string {
-  return `${ r.x }|${ r.y }|${ r.w }|${ r.h }`;
-}
-
-function deserializeRect(s: string): Rect {
-  const [ x, y, w, h ] = s.split("|").map(x => Number(x));
-
-  return { x, y, w, h };
-}
-
-function serializeLine(l: Line): string {
-  return `${ l.x1 }|${ l.x2 }|${ l.y1 }|${ l.y2 }`;
-}
-
-function deserializeLine(s: string): Line {
-  const [ x1, x2, y1, y2 ] = s.split("|").map(x => Number(x));
-
-  return { x1, x2, y1, y2 };
-}
-
-function isDegenerateLine(l: Line): boolean {
-  return lineLength(l) === 0;
+    return new Rect({ x, y, w, h });
+  }
 }
 
 function within(val: number, start: number, end: number): boolean {
@@ -89,9 +102,6 @@ function within(val: number, start: number, end: number): boolean {
 // Must be horizontally/vertically oriented lines
 // Does not consider intersection, only overlap
 function getLineOverlap(one: Line, two: Line): Line | undefined {
-  one = sortPointsOnLine(one);
-  two = sortPointsOnLine(two);
-
   const orientedByX = (
     one.x1 === one.x2 &&
     one.x1 === two.x1 &&
@@ -106,13 +116,13 @@ function getLineOverlap(one: Line, two: Line): Line | undefined {
 
   if (!orientedByX && !orientedByY) { return undefined; }
 
-  const summedLength  = lineLength(one) + lineLength(two);
-  const overallLength = lineLength({
+  const summedLength  = one.length + two.length;
+  const overallLength = new Line({
     x1: Math.min(one.x1, two.x1),
     y1: Math.min(one.y1, two.y1),
     x2: Math.max(one.x2, two.x2),
     y2: Math.max(one.y2, two.y2),
-  });
+  }).length;
 
   if (overallLength >= summedLength) {
     // These lines do not overlap.
@@ -121,28 +131,25 @@ function getLineOverlap(one: Line, two: Line): Line | undefined {
   }
 
   if (orientedByX) {
-    return {
+    return new Line({
       x1: one.x1,
       x2: one.x2,
       y1: Math.max(one.y1, two.y1),
       y2: Math.min(one.y2, two.y2),
-    };
+    });
   } else /* if (orientedByY) */ {
-    return {
+    return new Line({
       y1: one.y1,
       y2: one.y2,
       x1: Math.max(one.x1, two.x1),
       x2: Math.min(one.x2, two.x2),
-    };
+    });
   }
 }
 
 // A----B----C----D
 // AD - BC returns AB and CD.
 function getNonOverlap(one: Line, two: Line): Line[] | undefined {
-  one = sortPointsOnLine(one);
-  two = sortPointsOnLine(two);
-
   const orientedByX = (
     one.x1 === one.x2 &&
     one.x1 === two.x1 &&
@@ -157,13 +164,13 @@ function getNonOverlap(one: Line, two: Line): Line[] | undefined {
 
   if (!orientedByX && !orientedByY) { return undefined; }
 
-  const summedLength  = lineLength(one) + lineLength(two);
-  const overallLength = lineLength({
+  const summedLength  = new Line(one).length + new Line(two).length;
+  const overallLength = new Line({
     x1: Math.min(one.x1, two.x1),
     y1: Math.min(one.y1, two.y1),
     x2: Math.max(one.x1, two.x1),
     y2: Math.max(one.y1, two.y1),
-  });
+  }).length;
 
   if (overallLength >= summedLength) {
     // These lines do not overlap.
@@ -173,14 +180,14 @@ function getNonOverlap(one: Line, two: Line): Line[] | undefined {
 
   if (orientedByX) {
     return [
-      { x1: one.x1, x2: one.x2, y1: Math.min(one.y1, two.y1), y2: Math.max(one.y1, two.y1), },
-      { x1: one.x1, x2: one.x2, y1: Math.min(one.y2, two.y2), y2: Math.max(one.y2, two.y2), },
-    ].filter(l => !isDegenerateLine(l));
+      new Line({ x1: one.x1, x2: one.x2, y1: Math.min(one.y1, two.y1), y2: Math.max(one.y1, two.y1), }),
+      new Line({ x1: one.x1, x2: one.x2, y1: Math.min(one.y2, two.y2), y2: Math.max(one.y2, two.y2), }),
+    ].filter(l => !l.isDegenerate);
   } else /* if (orientedByY) */ {
     return [
-      { y1: one.y1, y2: one.y2, x1: Math.min(one.x1, two.x1), x2: Math.max(one.x1, two.x1), },
-      { y1: one.y1, y2: one.y2, x1: Math.min(one.x2, two.x2), x2: Math.max(one.x2, two.x2), },
-    ].filter(l => !isDegenerateLine(l));
+      new Line({ y1: one.y1, y2: one.y2, x1: Math.min(one.x1, two.x1), x2: Math.max(one.x1, two.x1), }),
+      new Line({ y1: one.y1, y2: one.y2, x1: Math.min(one.x2, two.x2), x2: Math.max(one.x2, two.x2), }),
+    ].filter(l => !l.isDegenerate);
   }
 }
 
@@ -217,12 +224,12 @@ function getIntersection(r1: Rect, r2: Rect, edgesOnlyIsAnIntersection = false):
     const ymax = Math.min(ymax1, ymax2);
 
     if (ymax >= ymin || (edgesOnlyIsAnIntersection && ymax >= ymin)) {
-      return {
+      return new Rect({
         x: xmin,
         y: ymin,
         w: xmax - xmin,
         h: ymax - ymin,
-      };
+      });
     }
   }
 
@@ -293,7 +300,8 @@ class ArbitrarySelection {
         { x: rect.x                               , y: subrectToRemove.y                    , w: subrectToRemove.x - rect.x                               , h: subrectToRemove.h }, // B
         { x: subrectToRemove.x + subrectToRemove.w, y: subrectToRemove.y                    , w: rect.x + rect.w - (subrectToRemove.w + subrectToRemove.x), h: subrectToRemove.h }, // C
         { x: rect.x                               , y: subrectToRemove.y + subrectToRemove.h, w: rect.w                                                   , h: rect.y + rect.h - (subrectToRemove.y + subrectToRemove.h) }, // D
-      ].filter(r => r.w > 0 && r.h > 0);
+      ].filter(r => r.w > 0 && r.h > 0)
+       .map(r => new Rect(r));
 
       this.cover = this.cover.concat(newRects);
     }
@@ -309,14 +317,14 @@ class ArbitrarySelection {
     const seenRects: { [key: string]: boolean } = {}
 
     for (const rect of this.cover) {
-      if (seenRects[serializeRect(rect)]) { continue; }
+      if (seenRects[rect.serialize()]) { continue; }
 
       const component = this.getConnectedComponentFrom(rect);
 
       components.push(component);
 
       for (const seen of component) {
-        seenRects[serializeRect(seen)] = true;
+        seenRects[seen.serialize()] = true;
       }
     }
 
@@ -331,18 +339,18 @@ class ArbitrarySelection {
       let newEdge: Rect[] = [];
 
       for (const rect of edge) {
-        if (component[serializeRect(rect)]) { continue; }
+        if (component[rect.serialize()]) { continue; }
 
         const intersectingRects = this.cover.filter(r => doRectsIntersect(r, rect, { edgesOnlyIsAnIntersection: true }));
 
-        component[serializeRect(rect)] = true;
+        component[rect.serialize()] = true;
         newEdge = newEdge.concat(intersectingRects);
       }
 
       edge = newEdge;
     }
 
-    return Object.keys(component).map(r => deserializeRect(r));
+    return Object.keys(component).map(r => Rect.DeserializeRect(r));
   }
 
   drawLine(l: Line): void {
@@ -378,7 +386,7 @@ class ArbitrarySelection {
     let linesOnOutline: Line[] = [];
 
     for (const rect of comp) {
-      allLines = allLines.concat(getLinesFromRect(rect));
+      allLines = allLines.concat(rect.getLinesFromRect());
     }
 
     context.strokeStyle = "#000";
@@ -425,22 +433,20 @@ class ArbitrarySelection {
     let visited: { [key: string]: boolean } = {};
 
     for (const line of outline) {
-      if (visited[serializeLine(line)]) { continue; }
-      visited[serializeLine(line)] = true;
+      if (visited[line.serialize()]) { continue; }
+      visited[line.serialize()] = true;
 
       const sequence = [line];
 
       while (true) {
         const current = sequence[sequence.length - 1];
-        const next = outline.filter(l => l !== current && !visited[serializeLine(l)] && doLinesShareAVertex(l, current))[0];
+        const next = outline.filter(l => l !== current && !visited[l.serialize()] && l.sharesAVertexWith(current))[0];
 
         if (!next) { break; }
 
-        visited[serializeLine(next)] = true;
+        visited[next.serialize()] = true;
         sequence.push(next);
       }
-
-      console.log(sequence.length);
 
       result.push(sequence);
     }
@@ -473,12 +479,12 @@ let start: { x: number, y: number } | undefined = undefined;
 function getMousedRect(e: MouseEvent): Rect | undefined {
   if (!start) { return undefined; }
 
-  return {
+  return new Rect({
     x: Math.min(start.x, e.clientX),
     y: Math.min(start.y, e.clientY),
     w: Math.abs(e.clientX - start.x),
     h: Math.abs(e.clientY - start.y),
-  };
+  });
 }
 
 canvas.addEventListener("mousedown", e => {
